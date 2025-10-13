@@ -256,96 +256,96 @@ export function CreateTaskForm({ isEdit = false, task, onOpenChange }: CreateTas
     setIsUploading(true);
 
     try {
-      let uploadedDocuments: Document[] = data.documents || [];
+        let uploadedDocuments: Document[] = data.documents || [];
 
-      if (data.files && data.files.length > 0) {
-          const tempId = task?.id || `temp_${Date.now()}`;
-          const uploadPromises = data.files.map(file => uploadFile(file, `tasks/${tempId}/documents`));
-          const downloadURLs = await Promise.all(uploadPromises);
-          
-          const newDocuments: Document[] = data.files.map((file, index) => ({
-              id: `doc_${Date.now()}_${index}`,
-              name: file.name,
-              url: downloadURLs[index],
-              uploadedBy: currentUser.id,
-              createdAt: new Date().toISOString(),
-          }));
-          uploadedDocuments = [...uploadedDocuments, ...newDocuments];
-      }
-      
-      let deadlineISO: string | undefined = undefined;
-      if (data.deadline) {
-          const date = new Date(data.deadline);
-          if (data.deadlineTime) {
-              const [hours, minutes] = data.deadlineTime.split(':');
-              date.setHours(parseInt(hours, 10));
-              date.setMinutes(parseInt(minutes, 10));
-          } else {
-              date.setHours(23, 59, 59, 999);
-          }
-          deadlineISO = date.toISOString();
-      }
-      
-      const finalData: Partial<Task> = {
-          ...data,
-          deadline: deadlineISO,
-          documents: uploadedDocuments,
-          assignableTo: data.assignableTo as AssignableRole[],
-      };
-      
-      delete (finalData as any).files;
-      delete (finalData as any).deadlineTime;
-      
-      // Fool-proof check for all potentially undefined fields
-      if (!finalData.voiceNoteUrl) delete finalData.voiceNoteUrl;
-      if (!finalData.description) delete finalData.description;
+        if (data.files && data.files.length > 0) {
+            const tempId = task?.id || `temp_${Date.now()}`;
+            const uploadPromises = data.files.map(file => uploadFile(file, `tasks/${tempId}/documents`));
+            const downloadURLs = await Promise.all(uploadPromises);
 
-      if (!finalData.assignableTo.includes('JPT')) {
-          delete finalData.requiredJpts;
-      }
-      if (!finalData.assignableTo.includes('Associate')) {
-          delete finalData.requiredAssociates;
-      }
+            const newDocuments: Document[] = data.files.map((file, index) => ({
+                id: `doc_${Date.now()}_${index}`,
+                name: file.name,
+                url: downloadURLs[index],
+                uploadedBy: currentUser.id,
+                createdAt: new Date().toISOString(),
+            }));
+            uploadedDocuments = [...uploadedDocuments, ...newDocuments];
+        }
 
-      if (isEdit && task) {
-          await updateTask(task.id, finalData);
-          toast({ title: 'Task Updated!' });
-      } else {
-          const newTaskData: Omit<Task, 'id'> = {
-            title: data.title,
-            description: data.description || '',
-            tags: data.tags || [],
-            status: 'Open',
-            createdBy: currentUser.id,
-            assignedTo: data.assignedTo || [],
-            assignableTo: data.assignableTo as AssignableRole[],
-            createdAt: new Date().toISOString(),
-            messages: [],
-            documents: uploadedDocuments,
+        let deadlineISO: string | undefined = undefined;
+        if (data.deadline) {
+            const date = new Date(data.deadline);
+            if (data.deadlineTime) { // Check if time is set
+                const [hours, minutes] = data.deadlineTime.split(':');
+                date.setHours(parseInt(hours, 10));
+                date.setMinutes(parseInt(minutes, 10));
+            } else {
+                // If no time is set, default to the end of the day
+                date.setHours(23, 59, 59, 999);
+            }
+            deadlineISO = date.toISOString();
+        }
+
+        const finalData: Partial<Task> = {
+            ...data,
             deadline: deadlineISO,
-            isAnonymous: data.isAnonymous || false,
-          };
-          
-          if (data.assignableTo.includes('JPT')) {
-              newTaskData.requiredJpts = data.requiredJpts;
-          }
-          if (data.assignableTo.includes('Associate')) {
-              newTaskData.requiredAssociates = data.requiredAssociates;
-          }
-          if (data.voiceNoteUrl) {
-            newTaskData.voiceNoteUrl = data.voiceNoteUrl;
-          }
-          
-          await createTask(newTaskData);
+            documents: uploadedDocuments,
+            assignableTo: data.assignableTo as AssignableRole[],
+        };
 
-          toast({
-            title: 'Task Created!',
-            description: `The task "${data.title}" has been posted.`,
-          });
-      }
+        delete (finalData as any).files;
+        delete (finalData as any).deadlineTime;
+
+        if (!finalData.voiceNoteUrl) delete finalData.voiceNoteUrl;
+        if (!finalData.description) delete finalData.description;
+
+        if (!finalData.assignableTo.includes('JPT')) {
+            delete finalData.requiredJpts;
+        }
+        if (!finalData.assignableTo.includes('Associate')) {
+            delete finalData.requiredAssociates;
+        }
+
+        if (isEdit && task) {
+            await updateTask(task.id, finalData);
+            toast({ title: 'Task Updated!' });
+        } else {
+            const newTaskData: Omit<Task, 'id'> = {
+                title: data.title,
+                description: data.description || '',
+                tags: data.tags || [],
+                status: 'Open',
+                createdBy: currentUser.id,
+                assignedTo: data.assignedTo || [],
+                assignableTo: data.assignableTo as AssignableRole[],
+                createdAt: new Date().toISOString(),
+                messages: [],
+                documents: uploadedDocuments,
+                deadline: deadlineISO,
+                isAnonymous: data.isAnonymous || false,
+            };
+
+            if (data.assignableTo.includes('JPT')) {
+                newTaskData.requiredJpts = data.requiredJpts;
+            }
+            if (data.assignableTo.includes('Associate')) {
+                newTaskData.requiredAssociates = data.requiredAssociates;
+            }
+            if (data.voiceNoteUrl) {
+                newTaskData.voiceNoteUrl = data.voiceNoteUrl;
+            }
+
+            await createTask(newTaskData);
+
+            toast({
+                title: 'Task Created!',
+                description: `The task "${data.title}" has been posted.`,
+            });
+        }
     } catch (err) {
-      console.error("Failed to save task:", err);
-      toast({variant: 'destructive', title: "An Error Occurred", description: "Could not save the task."});
+        console.error("Failed to save task:", err);
+        toast({ variant: 'destructive', title: "An Error Occurred", description: "Could not save the task." });
     } finally {
         setIsUploading(false);
         const currentSetOpen = onOpenChange || setOpen;

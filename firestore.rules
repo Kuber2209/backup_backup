@@ -1,32 +1,110 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Users can only read their own profile, but can be created by anyone (during signup)
-    match /users/{userId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth.uid == userId;
-      allow create: if request.auth != null;
+  
+    // Helper function to check if a user is authenticated
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    // Tasks can be read by any authenticated user.
-    // Tasks can only be created/updated/deleted by authenticated users.
-    // Specific logic for who can update/delete is handled in the app's security rules.
-    match /tasks/{taskId} {
-      allow read, write: if request.auth != null;
+    // Helper function to get the user's data from the 'users' collection
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
     }
     
-    // Messages subcollection can be read/written by authenticated users
-    match /tasks/{taskId}/messages/{messageId} {
-        allow read, write: if request.auth != null;
+    // Helper function to check if the requesting user has a specific role
+    function isRole(role) {
+      return isSignedIn() && getUserData(request.auth.uid).role == role;
     }
 
-    // Announcements can be read by authenticated users.
-    // Writes are restricted to authenticated users (admin roles handled in app logic).
+    // Helper function to check if the user is an SPT
+    function isSpt() {
+      return isRole('SPT');
+    }
+    
+    // Helper function to check if the user is a JPT
+    function isJpt() {
+      return isRole('JPT');
+    }
+    
+    // Helper function to check if the user is an admin (SPT or JPT)
+    function isAdmin() {
+      return isSpt() || isJpt();
+    }
+    
+    // Helper function to check if the user is the owner of a document
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // == Users Collection Rules ==
+    match /users/{userId} {
+      // Anyone authenticated can read user profiles (for avatars, names etc.)
+      allow read: if isSignedIn();
+      
+      // A user can create their own profile document
+      allow create: if isOwner(userId);
+      
+      // A user can update their own profile, or an SPT can update any profile
+      allow update: if isOwner(userId) || isSpt();
+    }
+    
+    // == Tasks Collection Rules ==
+    match /tasks/{taskId} {
+      // Any authenticated user can read tasks
+      allow read: if isSignedIn();
+      
+      // Only JPTs or SPTs can create tasks
+      allow create: if isAdmin();
+      
+      // Tasks can be updated by the creator, an assigned user, or an admin
+      allow update: if isSignedIn() && (
+                    request.auth.uid == resource.data.createdBy ||
+                    request.auth.uid in resource.data.assignedTo ||
+                    isAdmin()
+                  );
+      
+      // Only the creator or an SPT can delete a task
+      allow delete: if isSignedIn() && (isOwner(resource.data.createdBy) || isSpt());
+      
+      // Rules for task subcollections like messages
+      match /messages/{messageId} {
+        // Reading/writing messages is allowed if user is part of the task or an admin
+         allow read, write: if isSignedIn() && (
+                          request.auth.uid == resource.data.createdBy ||
+                          request.auth.uid in get(/databases/$(database)/documents/tasks/$(taskId)).data.assignedTo ||
+                          isAdmin()
+                        );
+      }
+    }
+    
+    // == Announcements Collection Rules ==
     match /announcements/{announcementId} {
-        allow read, write: if request.auth != null;
+        // Any authenticated user can read announcements
+        allow read: if isSignedIn();
+        
+        // Only admins can create, update, or delete announcements
+        allow create, update, delete: if isAdmin();
+    }
+    
+    // == Resources Collection Rules ==
+    match /resources/{resourceId} {
+        // Any authenticated user can read resources
+        allow read: if isSignedIn();
+        
+        // Admins can create/update/delete. Users can update to add comments.
+        allow create, delete: if isAdmin();
+        allow update: if isSignedIn(); // Allows adding comments
+    }
+
+    // == Blacklist and Whitelist Rules ==
+    // Only SPTs (admins) can read or modify the blacklist/whitelist
+    match /blacklist/{email} {
+        allow read, write: if isSpt();
+    }
+    match /whitelist/{email} {
+        allow read, write: if isSpt();
     }
   }
 }

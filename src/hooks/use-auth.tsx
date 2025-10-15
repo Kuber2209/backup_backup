@@ -27,22 +27,17 @@ const ADMIN_EMAIL = 'f20240819@hyderabad.bits-pilani.ac.in';
 const handleBlacklistedAccess = async (email: string | null) => {
     if (!email) return;
     await signOut(auth);
-    toast({
-        variant: 'destructive',
-        title: 'Access Denied',
-        description: `The email ${email} is on the blacklist.`,
-        duration: 5000,
-    });
-}
+};
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-async function fetchUserProfileWithRetry(fbUser: FirebaseUser, retries = 3, delay = 2000): Promise<User | null> {
+async function fetchUserProfileWithRetry(fbUser: FirebaseUser, retries = 3, delay = 2000): Promise<User | null | 'blacklisted'> {
     for (let i = 0; i < retries; i++) {
         try {
+            // This check needs to be inside the retry loop as well
             if (fbUser.email && await isEmailBlacklisted(fbUser.email) && fbUser.email !== ADMIN_EMAIL) {
                 await handleBlacklistedAccess(fbUser.email);
-                return 'blacklisted' as any; // Special sentinel value
+                return 'blacklisted';
             }
 
             let userProfile = await getUserProfile(fbUser.uid);
@@ -69,11 +64,14 @@ async function fetchUserProfileWithRetry(fbUser: FirebaseUser, retries = 3, dela
             await createUserProfile(newUser);
             return newUser;
         } catch (error: any) {
+            // We only retry on the specific 'unavailable' (offline) error code from Firestore.
             if (error.code === 'unavailable' && i < retries - 1) {
                 console.warn(`Firestore offline, attempt ${i + 1}. Retrying in ${delay}ms...`);
                 await sleep(delay);
             } else {
-                throw error; // Rethrow last error
+                // For any other error, or on the last retry, we throw.
+                console.error("Failed to fetch user profile:", error);
+                throw error; 
             }
         }
     }
@@ -94,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setFirebaseUser(fbUser);
             const userProfile = await fetchUserProfileWithRetry(fbUser);
             
-            if (userProfile === 'blacklisted' as any) {
+            if (userProfile === 'blacklisted') {
                 router.push('/access-declined');
             } else if (userProfile) {
                  if (userProfile.status === 'pending' && userProfile.email !== ADMIN_EMAIL) {
@@ -107,8 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     setUser(userProfile);
                 }
             } else {
-                // This case handles a null return from retry function, implying a final failure.
-                 await signOut(auth);
+                await signOut(auth);
                  setUser(null);
                  setFirebaseUser(null);
             }
@@ -116,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             console.error("onAuthStateChanged: Final error after retries:", error);
             toast({
                 variant: 'destructive',
-                title: 'Network Error',
+                title: 'Login Failed',
                 description: 'Could not connect to the database. Please check your internet connection and try again.'
             });
             await signOut(auth);
@@ -137,52 +134,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logIn = async (email: string, pass: string) => {
      if (await isEmailBlacklisted(email) && email !== ADMIN_EMAIL) {
-        toast({
-            variant: 'destructive',
-            title: 'Access Denied',
-            description: 'This email is on the blacklist.',
-        });
-        throw new Error("Email is blacklisted");
+        throw new Error("This email has been blacklisted.");
     }
     return signInWithEmailAndPassword(auth, email, pass);
   };
   
   const signUp = async (email: string, pass:string, name: string) => {
     if (await isEmailBlacklisted(email) && email !== ADMIN_EMAIL) {
-        toast({
-            variant: 'destructive',
-            title: 'Access Denied',
-            description: 'This email is on the blacklist.',
-        });
-        throw new Error("Email is blacklisted");
+        throw new Error("This email has been blacklisted and cannot be used to sign up.");
     }
 
     const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-    const fbUser = userCredential.user;
-    
-    // onAuthStateChanged will handle the profile creation, but we can do it here
-    // to make the experience feel faster if needed, though it's often better to have one source of truth.
-    // For now, we let the listener handle it to avoid race conditions.
+    // onAuthStateChanged listener will handle profile creation.
   };
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    const result = await signInWithPopup(auth, provider);
-    const email = result.user.email;
-     if (email && await isEmailBlacklisted(email) && email !== ADMIN_EMAIL) {
-        await handleBlacklistedAccess(email);
-        throw new Error("Email is blacklisted");
+    try {
+        const result = await signInWithPopup(auth, provider);
+        const email = result.user.email;
+        if (email && await isEmailBlacklisted(email) && email !== ADMIN_EMAIL) {
+            await handleBlacklistedAccess(email);
+            throw new Error("This email has been blacklisted.");
+        }
+        // `onAuthStateChanged` will handle profile creation and redirection.
+        return result;
+    } catch(err: any) {
+        // Rethrow the error to be caught by the UI
+        throw err;
     }
-    // `onAuthStateChanged` will handle profile creation and redirection.
-    return result;
   }
 
   const logOut = async () => {
     await signOut(auth);
     setUser(null);
     setFirebaseUser(null);
-    // Don't push to login here, allow the root page handler to do it.
-    // This prevents race conditions.
   };
 
 

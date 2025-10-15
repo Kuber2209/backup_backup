@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -93,7 +94,6 @@ export default function SignupPage() {
     try {
       await signUp(data.email, data.password, data.name);
       toast({ title: 'Account Created!', description: 'Your account is being set up.' });
-      // onAuthStateChanged will handle the redirect
     } catch (err: any) {
       setError(err.message || 'An unknown error occurred.');
       setIsProcessing(false);
@@ -105,13 +105,12 @@ export default function SignupPage() {
     setIsProcessing(true);
     try {
       await signInWithGoogle();
-      // onAuthStateChanged will handle the redirect
     } catch (err: any) {
       if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
         toast({
-          variant: 'destructive',
+          variant: 'default',
           title: 'Sign-up cancelled',
-          description: 'The sign-up window was closed. Please try again.',
+          description: 'The sign-up window was closed.',
         });
       } else {
         setError(err.message || 'An unknown error occurred during Google sign-up.');
@@ -132,7 +131,7 @@ export default function SignupPage() {
                 <CardContent className="grid gap-4">
                 {error && (
                     <Alert variant="destructive">
-                        <AlertTitle>Error</AlertTitle>
+                        <AlertTitle>Signup Error</AlertTitle>
                         <AlertDescription>{error}</AlertDescription>
                     </Alert>
                 )}

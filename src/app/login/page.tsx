@@ -67,15 +67,11 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
-    // If the user is already logged in (e.g. they hit the back button),
-    // the root page (`/`) will handle the redirect. We just prevent
-    // them from seeing the login form again.
     if (!loading && user) {
         router.push('/');
     }
   }, [user, loading, router]);
   
-  // This state covers the time between form submission and `onAuthStateChanged` completion
   if (isProcessing) {
     return (
         <div className="flex flex-col min-h-screen">
@@ -90,10 +86,6 @@ export default function LoginPage() {
     )
   }
   
-  // The root page will show a loading screen while auth is being checked.
-  // If we get here and we are still loading, or a user object exists,
-  // it means the redirect from the root page is about to happen.
-  // We can show nothing or a minimal loader.
   if (loading || user) {
     return null;
   }
@@ -103,7 +95,6 @@ export default function LoginPage() {
     setIsProcessing(true);
     try {
       await logIn(data.email, data.password);
-      // onAuthStateChanged will handle the redirect via the root page
     } catch (err: any) {
       setError(err.message || 'An unknown error occurred.');
       setIsProcessing(false);
@@ -115,13 +106,12 @@ export default function LoginPage() {
     setIsProcessing(true);
     try {
       await signInWithGoogle();
-      // onAuthStateChanged will handle the redirect via the root page
     } catch (err: any) {
        if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
         toast({
-          variant: 'destructive',
+          variant: 'default',
           title: 'Sign-in cancelled',
-          description: 'The sign-in window was closed. Please try again.',
+          description: 'The sign-in window was closed.',
         });
       } else {
         setError(err.message || 'An unknown error occurred during Google sign-in.');
@@ -142,7 +132,7 @@ export default function LoginPage() {
             <CardContent className="grid gap-4">
             {error && (
                 <Alert variant="destructive">
-                <AlertTitle>Error</AlertTitle>
+                <AlertTitle>Login Error</AlertTitle>
                 <AlertDescription>{error}</AlertDescription>
                 </Alert>
             )}

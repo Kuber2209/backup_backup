@@ -72,6 +72,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } else {
              // This is a new user
              if (!fbUser.email) {
+                // This case should ideally not happen for a new user if email is required for signup.
+                // Log out to be safe.
+                await signOut(auth);
                 return;
              }
 
@@ -99,9 +102,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setFirebaseUser(null);
           setUser(null);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("onAuthStateChanged: Error processing auth state:", error);
-        toast({variant: 'destructive', title: 'Authentication Error', description: 'Could not verify user status.'});
+        // Handle offline error gracefully
+        if (error.code === 'unavailable') {
+            toast({
+                variant: 'destructive',
+                title: 'Network Error',
+                description: 'Could not connect to the database. Please check your internet connection and try again.'
+            });
+            await signOut(auth); // Log the user out so they can retry
+        } else {
+            toast({variant: 'destructive', title: 'Authentication Error', description: 'Could not verify user status.'});
+        }
         setUser(null); 
         setFirebaseUser(null);
       } finally {

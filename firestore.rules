@@ -3,108 +3,76 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
   
-    // Helper function to check if a user is authenticated
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    // Helper function to get the user's data from the 'users' collection
-    function getUserData(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data;
-    }
-    
-    // Helper function to check if the requesting user has a specific role
-    function isRole(role) {
-      return isSignedIn() && getUserData(request.auth.uid).role == role;
-    }
-
-    // Helper function to check if the user is an SPT
-    function isSpt() {
-      return isRole('SPT');
-    }
-    
-    // Helper function to check if the user is a JPT
-    function isJpt() {
-      return isRole('JPT');
-    }
-    
-    // Helper function to check if the user is an admin (SPT or JPT)
+    // Helper function to check if a user is an admin (SPT or JPT)
     function isAdmin() {
-      return isSpt() || isJpt();
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['SPT', 'JPT'];
     }
     
-    // Helper function to check if the user is the owner of a document
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+    // Helper function to check if a user is an SPT
+    function isSpt() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'SPT';
     }
 
-    // == Users Collection Rules ==
+    // == USERS ==
+    // Users can only view/edit their own profile.
+    // Admins (SPT) can view/edit any profile for management.
     match /users/{userId} {
-      // Anyone authenticated can read user profiles (for avatars, names etc.)
-      allow read: if isSignedIn();
-      
-      // A user can create their own profile document
-      allow create: if isOwner(userId);
-      
-      // A user can update their own profile, or an SPT can update any profile
-      allow update: if isOwner(userId) || isSpt();
+      allow read: if request.auth != null && (request.auth.uid == userId || isSpt());
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && (
+          (request.auth.uid == userId && !("role" in request.resource.data)) || // User can update their own profile, but not their role
+          isSpt() // SPT can update anything
+      );
+      // No delete rule for user profiles by default for safety.
     }
-    
-    // == Tasks Collection Rules ==
+
+    // == TASKS ==
+    // Tasks can be read by any logged-in user.
+    // Created by admins, updated by creator or assigned users.
     match /tasks/{taskId} {
-      // Any authenticated user can read tasks
-      allow read: if isSignedIn();
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && isAdmin();
+      allow update: if request.auth != null && (
+        resource.data.createdBy == request.auth.uid || // Creator can update
+        request.auth.uid in resource.data.assignedTo // Assigned users can update
+      );
+      allow delete: if request.auth != null && isAdmin();
       
-      // Only JPTs or SPTs can create tasks
-      allow create: if isAdmin();
-      
-      // Tasks can be updated by the creator, an assigned user, or an admin
-      allow update: if isSignedIn() && (
-                    request.auth.uid == resource.data.createdBy ||
-                    request.auth.uid in resource.data.assignedTo ||
-                    isAdmin()
-                  );
-      
-      // Only the creator or an SPT can delete a task
-      allow delete: if isSignedIn() && (isOwner(resource.data.createdBy) || isSpt());
-      
-      // Rules for task subcollections like messages
+      // Messages subcollection within a task
       match /messages/{messageId} {
-        // Reading/writing messages is allowed if user is part of the task or an admin
-         allow read, write: if isSignedIn() && (
-                          request.auth.uid == resource.data.createdBy ||
-                          request.auth.uid in get(/databases/$(database)/documents/tasks/$(taskId)).data.assignedTo ||
-                          isAdmin()
-                        );
+        allow read, write: if request.auth != null && (
+          request.auth.uid == get(/databases/$(database)/documents/tasks/$(taskId)).data.createdBy ||
+          request.auth.uid in get(/databases/$(database)/documents/tasks/$(taskId)).data.assignedTo ||
+          isAdmin()
+        );
       }
     }
-    
-    // == Announcements Collection Rules ==
+
+    // == ANNOUNCEMENTS ==
+    // Can be read by any logged-in user, but only created/managed by admins.
     match /announcements/{announcementId} {
-        // Any authenticated user can read announcements
-        allow read: if isSignedIn();
-        
-        // Only admins can create, update, or delete announcements
-        allow create, update, delete: if isAdmin();
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null && isAdmin();
     }
     
-    // == Resources Collection Rules ==
+    // == RESOURCES ==
+    // Can be read by any logged-in user, but only created/managed by admins.
     match /resources/{resourceId} {
-        // Any authenticated user can read resources
-        allow read: if isSignedIn();
-        
-        // Admins can create/update/delete. Users can update to add comments.
-        allow create, delete: if isAdmin();
-        allow update: if isSignedIn(); // Allows adding comments
+       allow read: if request.auth != null;
+       // Create, update, delete allowed for admins. Comments can be written by any authenticated user.
+       allow write: if request.auth != null && isAdmin();
+       allow update: if request.auth != null; // Allow any authenticated user to add comments
     }
 
-    // == Blacklist and Whitelist Rules ==
-    // Only SPTs (admins) can read or modify the blacklist/whitelist
-    match /blacklist/{email} {
-        allow read, write: if isSpt();
-    }
+    // == ADMIN-ONLY COLLECTIONS ==
+    // Whitelist and Blacklist can only be accessed by SPTs
     match /whitelist/{email} {
-        allow read, write: if isSpt();
+      allow read, write: if request.auth != null && isSpt();
     }
+    
+    match /blacklist/{email} {
+       allow read, write: if request.auth != null && isSpt();
+    }
+
   }
 }

@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, {createContext, useContext, useState, useEffect, ReactNode} from 'react';
@@ -36,6 +35,51 @@ const handleBlacklistedAccess = async (email: string | null) => {
     });
 }
 
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function fetchUserProfileWithRetry(fbUser: FirebaseUser, retries = 3, delay = 2000): Promise<User | null> {
+    for (let i = 0; i < retries; i++) {
+        try {
+            if (fbUser.email && await isEmailBlacklisted(fbUser.email) && fbUser.email !== ADMIN_EMAIL) {
+                await handleBlacklistedAccess(fbUser.email);
+                return 'blacklisted' as any; // Special sentinel value
+            }
+
+            let userProfile = await getUserProfile(fbUser.uid);
+
+            if (userProfile) return userProfile; // User exists
+
+            // New user flow
+            if (!fbUser.email) {
+                await signOut(auth);
+                return null;
+            }
+            const isWhitelisted = await isEmailWhitelisted(fbUser.email);
+            const isAdmin = fbUser.email === ADMIN_EMAIL;
+            const newUser: User = {
+                id: fbUser.uid,
+                name: fbUser.displayName || 'New User',
+                email: fbUser.email,
+                role: isAdmin ? 'SPT' : 'Associate',
+                avatar: fbUser.photoURL || `https://i.pravatar.cc/150?u=${fbUser.uid}`,
+                isOnHoliday: false,
+                status: isAdmin || isWhitelisted ? 'active' : 'pending',
+                notificationTokens: [],
+            };
+            await createUserProfile(newUser);
+            return newUser;
+        } catch (error: any) {
+            if (error.code === 'unavailable' && i < retries - 1) {
+                console.warn(`Firestore offline, attempt ${i + 1}. Retrying in ${delay}ms...`);
+                await sleep(delay);
+            } else {
+                throw error; // Rethrow last error
+            }
+        }
+    }
+    return null;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -45,79 +89,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setLoading(true);
-      try {
-        if (fbUser) {
-          setFirebaseUser(fbUser);
-          
-          if (fbUser.email && await isEmailBlacklisted(fbUser.email) && fbUser.email !== ADMIN_EMAIL) {
-            await handleBlacklistedAccess(fbUser.email);
-            router.push('/access-declined');
-            return;
-          }
-
-          let userProfile = await getUserProfile(fbUser.uid);
-
-          if (userProfile) {
-            // Existing user
-            if (userProfile.status === 'pending' && userProfile.email !== ADMIN_EMAIL) {
-              setUser(userProfile);
-              router.push('/pending-approval');
-            } else if (userProfile.status === 'declined') {
-               await signOut(auth);
-               router.push('/access-declined');
-            } else {
-               // Active, undefined status, or admin email is allowed
-               setUser(userProfile);
-            }
-          } else {
-             // This is a new user
-             if (!fbUser.email) {
-                // This case should ideally not happen for a new user if email is required for signup.
-                // Log out to be safe.
-                await signOut(auth);
-                return;
-             }
-
-            const isWhitelisted = await isEmailWhitelisted(fbUser.email);
-            const isAdmin = fbUser.email === ADMIN_EMAIL;
-
-            const newUser: User = {
-                id: fbUser.uid,
-                name: fbUser.displayName || 'New User',
-                email: fbUser.email,
-                role: isAdmin ? 'SPT' : 'Associate', 
-                avatar: fbUser.photoURL || `https://i.pravatar.cc/150?u=${fbUser.uid}`,
-                isOnHoliday: false,
-                status: isAdmin || isWhitelisted ? 'active' : 'pending',
-                notificationTokens: [], // Initialize with an empty array
-            };
-            await createUserProfile(newUser);
-            setUser(newUser);
+      if (fbUser) {
+        try {
+            setFirebaseUser(fbUser);
+            const userProfile = await fetchUserProfileWithRetry(fbUser);
             
-            if (newUser.status === 'pending') {
-                router.push('/pending-approval');
+            if (userProfile === 'blacklisted' as any) {
+                router.push('/access-declined');
+            } else if (userProfile) {
+                 if (userProfile.status === 'pending' && userProfile.email !== ADMIN_EMAIL) {
+                    setUser(userProfile);
+                    router.push('/pending-approval');
+                } else if (userProfile.status === 'declined') {
+                    await signOut(auth);
+                    router.push('/access-declined');
+                } else {
+                    setUser(userProfile);
+                }
+            } else {
+                // This case handles a null return from retry function, implying a final failure.
+                 await signOut(auth);
+                 setUser(null);
+                 setFirebaseUser(null);
             }
-          }
-        } else {
-          setFirebaseUser(null);
-          setUser(null);
-        }
-      } catch (error: any) {
-        console.error("onAuthStateChanged: Error processing auth state:", error);
-        // Handle offline error gracefully
-        if (error.code === 'unavailable') {
+        } catch (error: any) {
+            console.error("onAuthStateChanged: Final error after retries:", error);
             toast({
                 variant: 'destructive',
                 title: 'Network Error',
                 description: 'Could not connect to the database. Please check your internet connection and try again.'
             });
-            await signOut(auth); // Log the user out so they can retry
-        } else {
-            toast({variant: 'destructive', title: 'Authentication Error', description: 'Could not verify user status.'});
+            await signOut(auth);
+            setUser(null);
+            setFirebaseUser(null);
+        } finally {
+            setLoading(false);
         }
-        setUser(null); 
+      } else {
         setFirebaseUser(null);
-      } finally {
+        setUser(null);
         setLoading(false);
       }
     });
@@ -150,23 +160,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
     const fbUser = userCredential.user;
     
-    // Explicitly create profile here instead of only relying on onAuthStateChanged
-    // to avoid race conditions on initial sign-up.
-    const isWhitelisted = await isEmailWhitelisted(fbUser.email!);
-    const isAdmin = fbUser.email === ADMIN_EMAIL;
-
-    const newUser: User = {
-        id: fbUser.uid,
-        name: name, // Use the name from the form
-        email: fbUser.email!,
-        role: isAdmin ? 'SPT' : 'Associate', 
-        avatar: fbUser.photoURL || `https://i.pravatar.cc/150?u=${fbUser.uid}`,
-        isOnHoliday: false,
-        status: isAdmin || isWhitelisted ? 'active' : 'pending',
-        notificationTokens: [],
-    };
-    await createUserProfile(newUser);
-    setUser(newUser); // Manually set user to update UI state immediately
+    // onAuthStateChanged will handle the profile creation, but we can do it here
+    // to make the experience feel faster if needed, though it's often better to have one source of truth.
+    // For now, we let the listener handle it to avoid race conditions.
   };
 
   const signInWithGoogle = async () => {

@@ -1,4 +1,3 @@
-
 # PUrge BPHC - Development & Deployment Guide
 
 This guide contains four main sections:

@@ -29,12 +29,17 @@ const handleBlacklistedAccess = async (email: string | null) => {
     await signOut(auth);
 };
 
+// Helper function to pause execution, useful for retries
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+/**
+ * Fetches the user profile from Firestore. If the user doesn't exist, it creates a new one.
+ * Includes a retry mechanism to handle transient network issues on initial load.
+ */
 async function fetchUserProfileWithRetry(fbUser: FirebaseUser, retries = 3, delay = 2000): Promise<User | null | 'blacklisted'> {
     for (let i = 0; i < retries; i++) {
         try {
-            // This check needs to be inside the retry loop as well
+            // Check for blacklisted status on every attempt
             if (fbUser.email && await isEmailBlacklisted(fbUser.email) && fbUser.email !== ADMIN_EMAIL) {
                 await handleBlacklistedAccess(fbUser.email);
                 return 'blacklisted';
@@ -42,15 +47,19 @@ async function fetchUserProfileWithRetry(fbUser: FirebaseUser, retries = 3, dela
 
             let userProfile = await getUserProfile(fbUser.uid);
 
-            if (userProfile) return userProfile; // User exists
+            if (userProfile) {
+                return userProfile; // User profile found, return it.
+            }
 
-            // New user flow
-            if (!fbUser.email) {
+            // --- New User Creation Flow ---
+            if (!fbUser.email) { // Should not happen with providers used
                 await signOut(auth);
                 return null;
             }
+
             const isWhitelisted = await isEmailWhitelisted(fbUser.email);
             const isAdmin = fbUser.email === ADMIN_EMAIL;
+            
             const newUser: User = {
                 id: fbUser.uid,
                 name: fbUser.displayName || 'New User',
@@ -61,22 +70,25 @@ async function fetchUserProfileWithRetry(fbUser: FirebaseUser, retries = 3, dela
                 status: isAdmin || isWhitelisted ? 'active' : 'pending',
                 notificationTokens: [],
             };
+            
             await createUserProfile(newUser);
-            return newUser;
+            return newUser; // Return the newly created user.
+
         } catch (error: any) {
-            // We only retry on the specific 'unavailable' (offline) error code from Firestore.
+            // Only retry on the specific 'unavailable' (offline) error code from Firestore.
             if (error.code === 'unavailable' && i < retries - 1) {
-                console.warn(`Firestore offline, attempt ${i + 1}. Retrying in ${delay}ms...`);
+                console.warn(`Firestore offline, attempt ${i + 1} of ${retries}. Retrying in ${delay}ms...`);
                 await sleep(delay);
             } else {
-                // For any other error, or on the last retry, we throw.
-                console.error("Failed to fetch user profile:", error);
+                // For any other error, or on the final retry attempt, throw the error to be caught by the calling function.
+                console.error("Failed to fetch or create user profile after multiple retries:", error);
                 throw error; 
             }
         }
     }
-    return null;
+    return null; // Should be unreachable if retries > 0
 }
+
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
@@ -105,11 +117,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     setUser(userProfile);
                 }
             } else {
+                // This case handles a null return from the retry function, which implies a failure.
                 await signOut(auth);
                  setUser(null);
                  setFirebaseUser(null);
             }
         } catch (error: any) {
+            // This block catches the final error thrown by fetchUserProfileWithRetry
             console.error("onAuthStateChanged: Final error after retries:", error);
             toast({
                 variant: 'destructive',

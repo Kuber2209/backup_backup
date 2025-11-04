@@ -2,14 +2,32 @@
 # PUrge BPHC - Development & Deployment Guide
 
 This guide contains four main sections:
-1.  **Local Testing:** How to run the app on your computer for testing before deployment.
-2.  **Version Control with Git:** How to track changes to your code locally and push them to GitHub.
-3.  **Public Deployment:** How to make your app live on the internet using services like Vercel or Firebase.
-4.  **Staging and Production Workflow:** How to test new features safely before updating your live application.
+1.  **First-Time Firebase Setup:** One-time setup for your Firebase project in the console.
+2.  **Local Testing:** How to run the app on your computer for testing before deployment.
+3.  **Version Control with Git:** How to track changes to your code locally and push them to GitHub.
+4.  **Public Deployment:** How to make your app live on the internet using services like Vercel or Firebase.
 
 ---
 
-### ✅ Section 1: Run and Test Locally on Your Network (Pre-Deployment)
+### ✅ Section 1: First-Time Firebase Setup (Crucial)
+
+Before running the application for the first time, you must activate the Firestore database in your Firebase project. This is a **one-time setup**.
+
+**1. Go to the Firebase Console:**
+*   Open your web browser and navigate to the [Firebase Console](https://console.firebase.google.com/).
+*   Select the Firebase project you are using for this application.
+
+**2. Create the Firestore Database:**
+*   In the left-hand navigation menu, under the "Build" section, click on **Firestore Database**.
+*   Click the **"Create database"** button.
+*   A wizard will appear. For the first step, "Secure your data", select **"Start in production mode"**. Click **Next**.
+*   For the second step, "Set up the location", choose a Firestore location. The one closest to your users is usually best (e.g., `asia-south1` for India). Click **Enable**.
+
+It will take a minute or two for the database to be provisioned. Once this is done, you can proceed with the rest of the setup. Your application will now be able to connect to the database.
+
+---
+
+### ✅ Section 2: Run and Test Locally on Your Network (Pre-Deployment)
 
 Follow these steps to run the application on your computer. This is perfect for testing on your phone, tablet, or other computers without making the site public.
 
@@ -55,11 +73,11 @@ Follow these steps to run the application on your computer. This is perfect for 
 
 ---
 
-### 📚 Section 2: Track Your Code with Git & GitHub (Version Control)
+### 📚 Section 3: Track Your Code with Git & GitHub (Version Control)
 
 Git is a tool that tracks the history of your code. GitHub is a website that stores your code remotely. This is essential for backup, collaboration, and automatic deployments.
 
-#### 2.1: Saving Changes Locally
+#### 3.1: Saving Changes Locally
 
 **1. Navigate to your project folder:**
 *   Open your terminal and use the `cd` command to go into your project's main folder.
@@ -81,7 +99,7 @@ Git is a tool that tracks the history of your code. GitHub is a website that sto
     ```
 *   You can run these two commands as many times as you want to save different versions of your project.
 
-#### 2.2: Pushing to GitHub
+#### 3.2: Pushing to GitHub
 
 This sends your saved local commits to your central repository on GitHub.
 
@@ -111,11 +129,11 @@ This sends your saved local commits to your central repository on GitHub.
 
 ---
 
-### 🚀 Section 3: Deploy Your Application to the Web (Go Live)
+### 🚀 Section 4: Deploy Your Application to the Web (Go Live)
 
 This section covers deploying your frontend (the Next.js app) and your backend (the Firebase Functions for notifications).
 
-#### 3.1: Deploying Firebase Functions (The "Sender")
+#### 4.1: Deploying Firebase Functions (The "Sender")
 
 This is a **critical step** to make push notifications work. These functions run on Google's servers and send notifications when database events occur.
 
@@ -133,7 +151,7 @@ This is a **critical step** to make push notifications work. These functions run
     ```
     After the command finishes, your backend notification logic will be live. You only need to re-run this command when you make changes to the files inside the `functions/src` directory.
 
-#### 3.2: Deploying the Web App (The "Receiver")
+#### 4.2: Deploying the Web App (The "Receiver")
 
 This is the final step to make your application live on a public URL. The recommended approach is to connect your GitHub repository to a hosting provider like **Vercel** or **Firebase Hosting**.
 
@@ -141,7 +159,7 @@ This is the final step to make your application live on a public URL. The recomm
 
 Vercel is designed for Next.js and makes deployment incredibly simple.
 
-1.  **Push your code to GitHub** by following the steps in Section 2.
+1.  **Push your code to GitHub** by following the steps in Section 3.
 2.  Go to [Vercel.com](https://vercel.com) and sign up with your GitHub account.
 3.  Click "Add New... -> Project" from your Vercel dashboard.
 4.  Select your GitHub repository for this project.
@@ -149,63 +167,3 @@ Vercel is designed for Next.js and makes deployment incredibly simple.
 6.  Click **"Deploy"**.
 
 **The Magic of Automatic Deployments:** Once set up, Vercel will automatically redeploy your website every time you `git push` a new commit to your `main` branch on GitHub.
-
-**Alternative: Deploying with Firebase Hosting**
-
-1.  **Log in and Initialize Firebase** (if you haven't already from the functions step).
-2.  **Build and Deploy:**
-    *   First, create an optimized production build of your app:
-        ```bash
-        npm run build
-        ```
-    *   Now, deploy the app to Firebase Hosting:
-        ```bash
-        firebase deploy --only hosting
-        ```
-    After the command finishes, the terminal will display your **Public URL** (it will look something like `https://your-project-id.web.app`). Congratulations, your app is live!
-
----
-
-### 🧪 Section 4: Staging and Production Workflow with Vercel
-
-This workflow allows you to test new features on a live "preview" URL without affecting your main application (your MVP).
-
-**1. Set Up Your Branches:**
-*   **`main` (Production):** This branch contains the code for your stable, live MVP. In Vercel, you will set this as your "Production Branch".
-*   **`develop` or `pre-deployment` (Staging):** Create a new branch for your new features. This will be your testing or "staging" environment.
-    ```bash
-    # Create a new branch called 'develop' and switch to it
-    git checkout -b develop
-    ```
-
-**2. Push Changes to the Staging Branch:**
-*   Make your code changes, commit them, and then push them to your `develop` branch on GitHub.
-    ```bash
-    # After committing your changes...
-    git push origin develop
-    ```
-
-**3. Test on Vercel's Preview Deployment:**
-*   When you push to a non-production branch (like `develop`), Vercel automatically creates a **Preview Deployment**.
-*   In your Vercel dashboard, you'll see this new deployment with its own unique URL (e.g., `your-project-develop-a1b2c3.vercel.app`).
-*   Use this URL to thoroughly test your new features. Your main MVP on your production URL remains completely untouched.
-
-**4. Merge to Production:**
-*   Once you are confident that the changes on the `develop` branch are working perfectly, merge them into your `main` branch.
-    ```bash
-    # Switch back to the main branch
-    git checkout main
-
-    # Pull the latest changes from GitHub
-    git pull origin main
-
-    # Merge the 'develop' branch into 'main'
-    git merge develop
-    ```
-*   Push the updated `main` branch to GitHub:
-    ```bash
-    git push origin main
-    ```
-
-**5. Automatic Production Deployment:**
-*   Pushing to the `main` branch will automatically trigger a new **Production Deployment** on Vercel. Your live MVP will be updated with the new features.

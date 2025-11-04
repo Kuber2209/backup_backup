@@ -2,9 +2,9 @@
 
 This guide contains four main sections:
 1.  **First-Time Firebase Setup:** One-time setup for your Firebase project in the console.
-2.  **Local Testing:** How to run the app on your computer for testing before deployment.
-3.  **Version Control with Git:** How to track changes to your code locally and push them to GitHub.
-4.  **Public Deployment:** How to make your app live on the internet using services like Vercel or Firebase.
+2.  **Resolving Connection Errors After a Billing Issue:** A critical troubleshooting step if you've had a billing account deactivated.
+3.  **Local Testing & Version Control:** How to run the app in a cloud environment and track code changes.
+4.  **Public Deployment:** How to make your app live on the internet.
 
 ---
 
@@ -26,68 +26,69 @@ It will take a minute or two for the database to be provisioned. Once this is do
 
 ---
 
-### ✅ Section 2: Run and Test Locally on Your Network (Pre-Deployment)
+### ✅ Section 2: Resolving Connection Errors After a Billing Issue
 
-Follow these steps to run the application on your computer. This is perfect for testing on your phone, tablet, or other computers without making the site public.
+If your Firebase project is on a paid plan and your billing account was ever deactivated and then reactivated, you may see a "Could not connect to the database" error. This happens because Google Cloud disables the underlying APIs, and they are often **not** re-enabled automatically.
 
-**1. Download Your Project Code:**
-*   Click the "Download code" button in Firebase Studio to get the project as a ZIP file.
-*   Unzip the file on your computer.
+Follow these steps to fix it:
 
-**2. Install Prerequisites:**
-*   **Node.js:** If you don't have it, [download and install it from the official website](https://nodejs.org/). This also installs `npm`.
-*   **Firebase CLI:** You'll need this for deploying backend functions. Install it globally by running:
-    ```bash
-    npm install -g firebase-tools
-    ```
+**1. Go to the Google Cloud Console API Library:**
+*   Make sure you are logged in with the same Google account associated with your Firebase project.
+*   Open this direct link: [https://console.cloud.google.com/apis/library/firestore.googleapis.com](https://console.cloud.google.com/apis/library/firestore.googleapis.com)
 
-**3. Install Project Dependencies:**
-*   Open a terminal (Command Prompt, PowerShell, or Terminal on Mac).
-*   Navigate into the project folder you unzipped using the `cd` command. For example:
-    ```bash
-    # Replace 'your-project-folder-name' with the actual folder name
-    cd C:\Users\YourName\Desktop\your-project-folder-name
-    ```
-*   Once inside the folder, run this command to install all the necessary packages for both the web app and the backend functions:
-    ```bash
-    npm install && (cd functions && npm install)
-    ```
+**2. Select Your Project:**
+*   At the top of the page, you'll see a project dropdown menu. Make sure it shows the name of your Firebase project (e.g., "purge-bphc-12345"). If not, click it and select the correct project.
 
-**4. Start the Local Development Server:**
-*   In the same terminal, run the following command:
-    ```bash
-    npm run dev
-    ```
-*   The terminal will show you that the server is running. It will look something like this:
-    ```
-    ✓ Ready in 1.2s
-    - Local:        http://localhost:9002
-    - Network:      http://192.168.1.10:9002
-    ```
+**3. Enable the API:**
+*   The page will be for the "Cloud Firestore API". You will likely see a blue **"Enable"** button.
+*   **Click the "Enable" button.**
+*   It may take a minute or two to process. Once it is enabled, the button will change to a gray "Manage" button.
 
-**5. Access From Other Devices:**
-*   Ensure your computer and your other devices (phone, tablet) are connected to the **SAME Wi-Fi network**.
-*   On your phone or tablet, open a web browser and type in the **Network URL** provided by the terminal (e.g., `http://192.168.1.10:9002`).
-*   The web app will now load on your device, and you can test it directly! Any changes you make in the code editor and apply will update live.
+**4. Restart Your Application:**
+*   Once the API is enabled, restart your application (or simply try logging in again). The connection error should now be resolved.
 
 ---
 
-### 📚 Section 3: Track Your Code with Git & GitHub (Version Control)
+### ✅ Section 3: Run, Test, and Track Your Code (Cloud Workflow)
+
+This entire workflow uses a browser and a cloud-based terminal, so you do not need to install anything on your local computer.
+
+#### 3.1: Open the Google Cloud Shell
+
+*   Go to the [Google Cloud Console](https://console.cloud.google.com/).
+*   Make sure your project is selected at the top.
+*   Click the **"Activate Cloud Shell"** icon in the top-right corner of the header. It looks like a terminal prompt `>_`. This will open a terminal session at the bottom of your browser.
+
+#### 3.2: Get Your Code
+
+*   **First time? Clone from GitHub:** If your code is on GitHub, you'll need to clone it. Run this command in the Cloud Shell, replacing the URL with your repository's URL:
+    ```bash
+    git clone https://github.com/YourUsername/your-repo-name.git
+    cd your-repo-name
+    ```
+*   **Already cloned? Pull the latest:** If you've already cloned the repo in a previous session, just navigate to the folder and pull the latest changes:
+    ```bash
+    cd your-repo-name
+    git pull
+    ```
+
+#### 3.3: Install Dependencies & Run the App
+
+*   Run this command to install all necessary packages for the web app and the backend functions:
+    ```bash
+    npm install && (cd functions && npm install)
+    ```
+*   To start the development server for testing, run:
+    ```bash
+    npm run dev
+    ```
+*   The terminal will show that the server is ready. Click the **"Web Preview"** button (it looks like a box with an arrow) in the Cloud Shell toolbar.
+*   Select **"Preview on port 9002"**. A new browser tab will open with your running application, allowing you to test it live.
+
+#### 3.4: Track Your Code with Git & GitHub (Version Control)
 
 Git is a tool that tracks the history of your code. GitHub is a website that stores your code remotely. This is essential for backup, collaboration, and automatic deployments.
 
-#### 3.1: Saving Changes Locally
-
-**1. Navigate to your project folder:**
-*   Open your terminal and use the `cd` command to go into your project's main folder.
-
-**2. Initialize Git (only do this once per project):**
-*   If you haven't already, run this command to start tracking your project:
-    ```bash
-    git init
-    ```
-
-**3. Save your versions (Commit):**
 *   As you make changes, you need to save them. This is a two-step "commit" process.
     ```bash
     # Step 1: Add all modified files to the "staging area" (the '.' means all files)
@@ -96,32 +97,7 @@ Git is a tool that tracks the history of your code. GitHub is a website that sto
     # Step 2: Save the staged files with a descriptive message
     git commit -m "Add new background style and update readme"
     ```
-*   You can run these two commands as many times as you want to save different versions of your project.
-
-#### 3.2: Pushing to GitHub
-
-This sends your saved local commits to your central repository on GitHub.
-
-**1. Create a Repository on GitHub:**
-*   Go to [GitHub.com](https://github.com) and create a new, **empty** repository (do not initialize it with a README or license file).
-*   After creating it, GitHub will show you a page with a URL. Copy the HTTPS URL, which looks like this: `https://github.com/YourUsername/Your-Repo-Name.git`.
-
-**2. Link Your Local Project to GitHub (only do this once):**
-*   In your terminal (inside your project folder), run this command, replacing the URL with the one you copied:
-    ```bash
-    git remote add origin https://github.com/YourUsername/Your-Repo-Name.git
-    ```
-*   Then, ensure your main branch is named `main`:
-    ```bash
-    git branch -M main
-    ```
-
-**3. Push Your Code:**
-*   To push your code for the first time, run this command:
-    ```bash
-    git push -u origin main
-    ```
-*   From now on, after you commit new changes locally (`git add .` and `git commit`), you can simply run the following command to update your GitHub repository:
+*   To push your saved changes to GitHub, run:
     ```bash
     git push
     ```
@@ -134,21 +110,18 @@ This section covers deploying your frontend (the Next.js app) and your backend (
 
 #### 4.1: Deploying Firebase Functions (The "Sender")
 
-This is a **critical step** to make push notifications work. These functions run on Google's servers and send notifications when database events occur.
+This is a **critical step** to make push notifications work. These functions run on Google's servers and send notifications when database events occur. You only need to run this command when you change the code inside the `functions/src` directory.
 
-1.  **Open Your Terminal:** Use a terminal on your local machine or a cloud environment like Google Cloud Shell.
-2.  **Navigate to Project Directory:** Use the `cd` command to go into your project's main folder.
-3.  **Log In to Firebase:**
+1.  **Open Your Cloud Shell** and navigate to your project directory.
+2.  **Log In to Firebase (if needed):**
     ```bash
     firebase login
     ```
-    This will open a browser window for you to log in to your Google account.
-4.  **Select Your Firebase Project:** If you have multiple Firebase projects, you may need to select the correct one. You can use `firebase projects:list` to see available projects and `firebase use <your-project-id>` to select one.
-5.  **Deploy the Functions:** Run the following command. This specifically finds the code in the `functions` directory, builds it, and sends it to Firebase.
+3.  **Deploy the Functions:** Run the following command. This specifically finds the code in the `functions` directory, builds it, and sends it to Firebase.
     ```bash
     firebase deploy --only functions
     ```
-    After the command finishes, your backend notification logic will be live. You only need to re-run this command when you make changes to the files inside the `functions/src` directory.
+    After the command finishes, your backend notification logic will be live.
 
 #### 4.2: Deploying the Web App (The "Receiver")
 
@@ -162,7 +135,7 @@ Vercel is designed for Next.js and makes deployment incredibly simple.
 2.  Go to [Vercel.com](https://vercel.com) and sign up with your GitHub account.
 3.  Click "Add New... -> Project" from your Vercel dashboard.
 4.  Select your GitHub repository for this project.
-5.  Vercel will automatically detect it's a Next.js app. You may need to configure your **Environment Variables** (like your Firebase and Gemini API keys) in the project settings on Vercel.
+5.  Vercel will automatically detect it's a Next.js app. You will need to configure your **Environment Variables** (like your Firebase and Gemini API keys) in the project settings on Vercel.
 6.  Click **"Deploy"**.
 
 **The Magic of Automatic Deployments:** Once set up, Vercel will automatically redeploy your website every time you `git push` a new commit to your `main` branch on GitHub.

@@ -71,6 +71,7 @@ export function PitchItem({ pitch, users }: PitchItemProps) {
     const canAccept = currentUser?.role === 'Associate' && pitch.status === 'Open';
     const isAssignedToCurrentUser = pitch.assignedTo === currentUser?.id;
     const canManage = currentUser?.role === 'SPT' || currentUser?.role === 'JPT';
+    const canEdit = currentUser != null; // Any logged-in user can edit
 
     const assignedUser = users.find(u => u.id === pitch.assignedTo);
     const createdBy = users.find(u => u.id === pitch.createdBy);
@@ -83,11 +84,11 @@ export function PitchItem({ pitch, users }: PitchItemProps) {
                     <CardTitle className="font-headline text-lg flex items-center gap-2">
                         <Briefcase className='w-5 h-5' /> {pitch.companyName}
                     </CardTitle>
-                    {canManage && <PitchActions pitch={pitch} />}
+                    <PitchActions pitch={pitch} canManage={canManage} canEdit={canEdit} />
                 </div>
             </CardHeader>
             <CardContent className="flex-grow space-y-4">
-                {isEditingContact ? (
+                {isEditingContact && canEdit ? (
                      <div className="space-y-4 p-3 bg-muted/50 rounded-lg">
                         <div className="space-y-2">
                             <Label htmlFor='hrName-edit' className="text-xs">HR Name</Label>
@@ -108,9 +109,11 @@ export function PitchItem({ pitch, users }: PitchItemProps) {
                     </div>
                 ) : (
                     <div className="p-3 bg-muted/50 rounded-lg space-y-2 relative group">
-                       <Button variant="ghost" size="icon" className="absolute top-1 right-1 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setIsEditingContact(true)}>
+                       {canEdit && (
+                         <Button variant="ghost" size="icon" className="absolute top-1 right-1 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setIsEditingContact(true)}>
                            <Edit className='h-4 w-4'/>
-                       </Button>
+                         </Button>
+                       )}
                         {hasContactInfo ? (
                             <>
                                 {pitch.hrName && <p className="text-sm font-medium flex items-center gap-2"><UserIcon className="w-4 h-4 text-muted-foreground"/> {pitch.hrName}</p>}
@@ -118,7 +121,7 @@ export function PitchItem({ pitch, users }: PitchItemProps) {
                                 {pitch.hrPhone && <p className="text-sm text-muted-foreground flex items-center gap-2"><Phone className="w-4 h-4"/> {pitch.hrPhone}</p>}
                             </>
                         ) : (
-                           <p className="text-sm text-center text-muted-foreground italic py-2">No contact details yet. Click edit to add.</p>
+                           <p className="text-sm text-center text-muted-foreground italic py-2">No contact details yet. {canEdit ? "Click edit to add." : ""}</p>
                         )}
                     </div>
                 )}
@@ -155,7 +158,7 @@ export function PitchItem({ pitch, users }: PitchItemProps) {
     );
 }
 
-function PitchActions({ pitch }: { pitch: Pitch }) {
+function PitchActions({ pitch, canManage, canEdit }: { pitch: Pitch, canManage: boolean, canEdit: boolean }) {
     const [editOpen, setEditOpen] = useState(false);
     const { toast } = useToast();
 
@@ -178,16 +181,20 @@ function PitchActions({ pitch }: { pitch: Pitch }) {
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                        <DropdownMenuItem onSelect={() => setEditOpen(true)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            <span>Edit</span>
-                        </DropdownMenuItem>
-                        <AlertDialogTrigger asChild>
-                            <DropdownMenuItem className="text-destructive">
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                <span>Delete</span>
+                        {canEdit && (
+                            <DropdownMenuItem onSelect={() => setEditOpen(true)}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                <span>Edit</span>
                             </DropdownMenuItem>
-                        </AlertDialogTrigger>
+                        )}
+                        {canManage && (
+                            <AlertDialogTrigger asChild>
+                                <DropdownMenuItem className="text-destructive">
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    <span>Delete</span>
+                                </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                        )}
                     </DropdownMenuContent>
                 </DropdownMenu>
 

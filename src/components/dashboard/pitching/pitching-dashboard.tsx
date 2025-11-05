@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
-import { getPitches, getUsers, updatePitch } from '@/services/firestore';
+import { getPitches, getUsers, updatePitch, deletePitch } from '@/services/firestore';
 import type { Pitch, User } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,10 @@ import { useToast } from '@/hooks/use-toast';
 import { PitchItem } from './pitch-item';
 import { CreatePitchForm } from './create-pitch-form';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Briefcase, Mail, Phone, User as UserIcon } from 'lucide-react';
+import { Briefcase, Edit, Mail, MoreVertical, Phone, Trash2, User as UserIcon } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Dialog } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 export function PitchingDashboard() {
   const { user: currentUser } = useAuth();
@@ -112,6 +115,7 @@ export function PitchingDashboard() {
 
 function AvailablePitchRow({ pitch, currentUser }: { pitch: Pitch, currentUser: User }) {
     const { toast } = useToast();
+    const [editOpen, setEditOpen] = useState(false);
 
     const handleAccept = async () => {
         try {
@@ -121,8 +125,20 @@ function AvailablePitchRow({ pitch, currentUser }: { pitch: Pitch, currentUser: 
             toast({ variant: 'destructive', title: "Error", description: "Could not accept the pitch." });
         }
     };
+    
+    const handleDelete = async () => {
+        try {
+            await deletePitch(pitch.id);
+            toast({ title: "Pitch Deleted" });
+        } catch (err) {
+            toast({ variant: 'destructive', title: "Error", description: "Could not delete the pitch." });
+        }
+    }
+
 
     const canAccept = currentUser?.role === 'Associate';
+    const canManage = currentUser?.role === 'SPT' || currentUser?.role === 'JPT';
+    const canEdit = currentUser != null;
 
     return (
         <TableRow>
@@ -145,7 +161,49 @@ function AvailablePitchRow({ pitch, currentUser }: { pitch: Pitch, currentUser: 
                 <p className="text-sm text-muted-foreground max-w-xs truncate">{pitch.otherDetails || '-'}</p>
             </TableCell>
             <TableCell className="text-right">
-                {canAccept && <Button onClick={handleAccept} size="sm">Accept</Button>}
+                <div className='flex items-center justify-end gap-2'>
+                    {canAccept && <Button onClick={handleAccept} size="sm">Accept</Button>}
+                    <AlertDialog>
+                       <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon">
+                                        <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent>
+                                    {canEdit && (
+                                        <DropdownMenuItem onSelect={() => setEditOpen(true)}>
+                                            <Edit className="mr-2 h-4 w-4" />
+                                            <span>Edit</span>
+                                        </DropdownMenuItem>
+                                    )}
+                                    {canManage && (
+                                        <AlertDialogTrigger asChild>
+                                            <DropdownMenuItem className="text-destructive">
+                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                <span>Delete</span>
+                                            </DropdownMenuItem>
+                                        </AlertDialogTrigger>
+                                    )}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                             {editOpen && <CreatePitchForm isEdit pitch={pitch} onFormOpenChange={setEditOpen} />}
+                        </Dialog>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently delete the pitch for {pitch.companyName}.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </div>
             </TableCell>
         </TableRow>
     )

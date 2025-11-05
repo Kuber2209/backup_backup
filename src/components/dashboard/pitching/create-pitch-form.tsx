@@ -19,7 +19,9 @@ import { createPitch, updatePitch } from '@/services/firestore';
 
 const pitchSchema = z.object({
   companyName: z.string().min(2, 'Company name must be at least 2 characters long.'),
-  contactDetails: z.string().optional(),
+  hrName: z.string().optional(),
+  hrEmail: z.string().email('Please enter a valid email.').optional().or(z.literal('')),
+  hrPhone: z.string().optional(),
   otherDetails: z.string().optional(),
 });
 
@@ -40,11 +42,15 @@ export function CreatePitchForm({ isEdit = false, pitch, onOpenChange }: CreateP
     resolver: zodResolver(pitchSchema),
     defaultValues: isEdit && pitch ? {
         companyName: pitch.companyName,
-        contactDetails: pitch.contactDetails,
+        hrName: pitch.hrName,
+        hrEmail: pitch.hrEmail,
+        hrPhone: pitch.hrPhone,
         otherDetails: pitch.otherDetails,
     } : {
       companyName: '',
-      contactDetails: '',
+      hrName: '',
+      hrEmail: '',
+      hrPhone: '',
       otherDetails: '',
     },
   });
@@ -98,12 +104,23 @@ export function CreatePitchForm({ isEdit = false, pitch, onOpenChange }: CreateP
               <Input id="companyName" {...register('companyName')} />
               {errors.companyName && <p className="text-sm text-destructive">{errors.companyName.message}</p>}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="contactDetails">Contact Details (Optional)</Label>
-              <Textarea id="contactDetails" {...register('contactDetails')} placeholder="e.g., John Doe - HR, john.doe@example.com"/>
+             <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="hrName">HR Name</Label>
+                  <Input id="hrName" {...register('hrName')} placeholder="e.g., Jane Doe" />
+                </div>
+                 <div className="space-y-2">
+                  <Label htmlFor="hrPhone">HR Phone</Label>
+                  <Input id="hrPhone" {...register('hrPhone')} placeholder="+91..." />
+                </div>
+            </div>
+             <div className="space-y-2">
+              <Label htmlFor="hrEmail">HR Email</Label>
+              <Input id="hrEmail" type="email" {...register('hrEmail')} placeholder="hr@example.com"/>
+              {errors.hrEmail && <p className="text-sm text-destructive">{errors.hrEmail.message}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="otherDetails">Other Details (Optional)</Label>
+              <Label htmlFor="otherDetails">Notes / Remarks</Label>
               <Textarea id="otherDetails" {...register('otherDetails')} placeholder="e.g., Mention our new AI curriculum."/>
             </div>
         </form>

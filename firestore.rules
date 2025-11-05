@@ -62,15 +62,11 @@ service cloud.firestore {
     }
 
     // == PITCHES ==
-    // Any authenticated user can read the list of pitches.
-    // Individual documents have stricter create/update rules.
+    // Any authenticated user can read the list of pitches and update any pitch.
+    // Create and delete are restricted to admins.
     match /pitches/{pitchId} {
-      allow list, read: if request.auth != null;
+      allow list, read, update: if request.auth != null;
       allow create: if request.auth != null && isAdmin();
-      allow update: if request.auth != null && (
-        resource.data.createdBy == request.auth.uid || // Creator
-        request.auth.uid == request.resource.data.assignedTo // Newly assigned user
-      );
       allow delete: if request.auth != null && isAdmin();
     }
 

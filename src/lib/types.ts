@@ -104,7 +104,9 @@ export interface Task {
 export interface Pitch {
     id: string;
     companyName: string;
-    contactDetails?: string;
+    hrName?: string;
+    hrEmail?: string;
+    hrPhone?: string;
     otherDetails?: string;
     status: 'Open' | 'Assigned' | 'Pitched';
     createdBy: string; // JPT or SPT userId

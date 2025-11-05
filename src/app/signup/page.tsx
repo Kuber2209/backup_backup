@@ -1,8 +1,7 @@
 
 'use client';
 
-/*
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -55,10 +54,9 @@ function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
-*/
+
 
 export default function SignupPage() {
-  /*
   const { signUp, signInWithGoogle, loading, user } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
@@ -70,23 +68,23 @@ export default function SignupPage() {
     resolver: zodResolver(signupSchema),
   });
   
-  useState(() => {
+  useEffect(() => {
     if (!loading && user) {
       router.push('/dashboard');
     }
-  });
+  }, [user, loading, router]);
 
-  if (isProcessing || loading) {
+  if (isProcessing || loading || user) {
     return (
-       <div className="flex flex-col min-h-screen">
-         <LandingHeader />
-         <main className="flex flex-1 items-center justify-center p-4">
-           <div className="flex flex-col items-center gap-2 text-center">
-             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-             <p className="text-muted-foreground">Creating account...</p>
-           </div>
-         </main>
-       </div>
+        <div className="flex flex-col min-h-screen">
+          <LandingHeader />
+          <main className="flex flex-1 items-center justify-center p-4">
+            <div className="flex flex-col items-center gap-2 text-center">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-muted-foreground">Setting up...</p>
+            </div>
+          </main>
+        </div>
     )
   }
 
@@ -200,6 +198,4 @@ export default function SignupPage() {
         </main>
     </div>
   );
-  */
- return null;
 }

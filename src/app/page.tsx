@@ -11,9 +11,14 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    // Force redirect to dashboard, bypassing login
-    router.push('/dashboard');
-  }, [router]);
+    if (!loading) {
+      if (user) {
+        router.push('/dashboard');
+      } else {
+        router.push('/login');
+      }
+    }
+  }, [user, loading, router]);
 
   // Render a full-page loading indicator while the logic runs.
   return (

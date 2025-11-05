@@ -1,6 +1,7 @@
 
 'use client';
 
+/*
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -53,142 +54,149 @@ function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+*/
 
 export default function LoginPage() {
-  const { logIn, signInWithGoogle, user, loading } = useAuth();
-  const router = useRouter();
-  const { toast } = useToast();
-  const [error, setError] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
-  });
-
-  useEffect(() => {
-    if (!loading && user) {
-        router.push('/');
-    }
-  }, [user, loading, router]);
-  
-  if (isProcessing) {
-    return (
-        <div className="flex flex-col min-h-screen">
-         <LandingHeader />
-         <main className="flex flex-1 items-center justify-center p-4">
-           <div className="flex flex-col items-center gap-2 text-center">
-             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-             <p className="text-muted-foreground">Verifying...</p>
-           </div>
-         </main>
-       </div>
-    )
-  }
-  
-  if (loading || user) {
-    return null;
-  }
-
-  const onSubmit = async (data: LoginFormData) => {
-    setError(null);
-    setIsProcessing(true);
-    try {
-      await logIn(data.email, data.password);
-    } catch (err: any) {
-      setError(err.message || 'An unknown error occurred.');
-      setIsProcessing(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    setError(null);
-    setIsProcessing(true);
-    try {
-      await signInWithGoogle();
-    } catch (err: any) {
-       if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
-        toast({
-          variant: 'default',
-          title: 'Sign-in cancelled',
-          description: 'The sign-in window was closed.',
-        });
-      } else {
-        setError(err.message || 'An unknown error occurred during Google sign-in.');
-      }
-      setIsProcessing(false);
-    }
-  }
-
   return (
-    <div className='flex flex-col min-h-screen'>
-      <LandingHeader />
-      <main className="flex flex-1 items-center justify-center p-4">
-        <Card className="w-full max-w-sm">
-            <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-headline">Welcome Back</CardTitle>
-            <CardDescription>Sign in to access the dashboard.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-            {error && (
-                <Alert variant="destructive">
-                <AlertTitle>Login Error</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-                </Alert>
-            )}
-            <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isSubmitting}>
-                <GoogleIcon className="mr-2 h-4 w-4" />
-                Sign In with Google
-            </Button>
+    <div>
+      {/*
+      const { logIn, signInWithGoogle, user, loading } = useAuth();
+      const router = useRouter();
+      const { toast } = useToast();
+      const [error, setError] = useState<string | null>(null);
+      const [isProcessing, setIsProcessing] = useState(false);
+      const [showPassword, setShowPassword] = useState(false);
 
-            <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                    Or continue with
-                </span>
-                </div>
-            </div>
+      const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormData>({
+        resolver: zodResolver(loginSchema),
+      });
 
-            <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4">
-                <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="m@example.com" {...register('email')} />
-                {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
-                </div>
-                <div className="grid gap-2 relative">
-                <Label htmlFor="password">Password</Label>
-                <Input id="password" type={showPassword ? 'text' : 'password'} {...register('password')} />
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute bottom-1 right-1 h-7 w-7"
-                    onClick={() => setShowPassword(!showPassword)}
-                >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    <span className="sr-only">{showPassword ? 'Hide password' : 'Show password'}</span>
+      useEffect(() => {
+        if (!loading && user) {
+            router.push('/');
+        }
+      }, [user, loading, router]);
+      
+      if (isProcessing) {
+        return (
+            <div className="flex flex-col min-h-screen">
+             <LandingHeader />
+             <main className="flex flex-1 items-center justify-center p-4">
+               <div className="flex flex-col items-center gap-2 text-center">
+                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                 <p className="text-muted-foreground">Verifying...</p>
+               </div>
+             </main>
+           </div>
+        )
+      }
+      
+      if (loading || user) {
+        return null;
+      }
+
+      const onSubmit = async (data: LoginFormData) => {
+        setError(null);
+        setIsProcessing(true);
+        try {
+          await logIn(data.email, data.password);
+        } catch (err: any) {
+          setError(err.message || 'An unknown error occurred.');
+          setIsProcessing(false);
+        }
+      };
+
+      const handleGoogleSignIn = async () => {
+        setError(null);
+        setIsProcessing(true);
+        try {
+          await signInWithGoogle();
+        } catch (err: any) {
+           if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+            toast({
+              variant: 'default',
+              title: 'Sign-in cancelled',
+              description: 'The sign-in window was closed.',
+            });
+          } else {
+            setError(err.message || 'An unknown error occurred during Google sign-in.');
+          }
+          setIsProcessing(false);
+        }
+      }
+
+      return (
+        <div className='flex flex-col min-h-screen'>
+          <LandingHeader />
+          <main className="flex flex-1 items-center justify-center p-4">
+            <Card className="w-full max-w-sm">
+                <CardHeader className="text-center">
+                <CardTitle className="text-2xl font-headline">Welcome Back</CardTitle>
+                <CardDescription>Sign in to access the dashboard.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4">
+                {error && (
+                    <Alert variant="destructive">
+                    <AlertTitle>Login Error</AlertTitle>
+                    <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                )}
+                <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isSubmitting}>
+                    <GoogleIcon className="mr-2 h-4 w-4" />
+                    Sign In with Google
                 </Button>
-                {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
+
+                <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">
+                        Or continue with
+                    </span>
+                    </div>
                 </div>
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Sign In
-                </Button>
-            </form>
-            </CardContent>
-            <CardFooter>
-            <p className="w-full text-sm text-center text-muted-foreground">
-                Don't have an account?{' '}
-                <Link href="/signup" className="underline font-medium text-primary">
-                Sign Up
-                </Link>
-            </p>
-            </CardFooter>
-        </Card>
-      </main>
+
+                <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4">
+                    <div className="grid gap-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input id="email" type="email" placeholder="m@example.com" {...register('email')} />
+                    {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+                    </div>
+                    <div className="grid gap-2 relative">
+                    <Label htmlFor="password">Password</Label>
+                    <Input id="password" type={showPassword ? 'text' : 'password'} {...register('password')} />
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute bottom-1 right-1 h-7 w-7"
+                        onClick={() => setShowPassword(!showPassword)}
+                    >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        <span className="sr-only">{showPassword ? 'Hide password' : 'Show password'}</span>
+                    </Button>
+                    {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
+                    </div>
+                    <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Sign In
+                    </Button>
+                </form>
+                </CardContent>
+                <CardFooter>
+                <p className="w-full text-sm text-center text-muted-foreground">
+                    Don't have an account?{' '}
+                    <Link href="/signup" className="underline font-medium text-primary">
+                    Sign Up
+                    </Link>
+                </p>
+                </CardFooter>
+            </Card>
+          </main>
+        </div>
+      );
+      */}
     </div>
-  );
+  )
 }

@@ -11,6 +11,11 @@ import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Check, ChevronsUpDown, Search } from 'lucide-react';
 
 const statusStyles: { [key: string]: string } = {
   'Open': 'bg-primary/10 text-primary border-primary/20',
@@ -23,6 +28,9 @@ export function PitchingLogDashboard() {
   const [pitches, setPitches] = useState<Pitch[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedAssociates, setSelectedAssociates] = useState<string[]>([]);
+  const [associateFilterOpen, setAssociateFilterOpen] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -36,6 +44,22 @@ export function PitchingLogDashboard() {
 
     return () => unsubscribePitches();
   }, []);
+
+  const associates = useMemo(() => {
+    return users.filter(u => u.role === 'Associate');
+  }, [users]);
+  
+  const filteredPitches = useMemo(() => {
+      return pitches.filter(pitch => {
+          const searchMatch = searchTerm.trim() === '' ||
+              pitch.companyName.toLowerCase().includes(searchTerm.toLowerCase());
+
+          const associateMatch = selectedAssociates.length === 0 ||
+              (pitch.assignedTo && selectedAssociates.includes(pitch.assignedTo));
+
+          return searchMatch && associateMatch;
+      });
+  }, [pitches, searchTerm, selectedAssociates]);
 
   if (loading) {
       return (
@@ -61,6 +85,67 @@ export function PitchingLogDashboard() {
             <h2 className="text-2xl font-bold font-headline tracking-tight">Pitching Log</h2>
             <p className="text-muted-foreground">Monitor the status of all company pitches.</p>
         </div>
+
+         <div className="flex flex-col sm:flex-row gap-2 mb-6 p-4 border rounded-lg bg-card">
+            <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                    placeholder="Search by company name..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9"
+                />
+            </div>
+            <div className="flex-1 sm:flex-none sm:w-72">
+                <Popover open={associateFilterOpen} onOpenChange={setAssociateFilterOpen}>
+                    <PopoverTrigger asChild>
+                        <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={associateFilterOpen}
+                            className="w-full justify-between"
+                        >
+                        {selectedAssociates.length > 0 ? `${selectedAssociates.length} associate(s) selected` : "Filter by associate..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                        <Command>
+                            <CommandInput placeholder="Search associates..." />
+                            <CommandEmpty>No associates found.</CommandEmpty>
+                            <CommandList>
+                                <CommandGroup>
+                                {associates.map((associate) => (
+                                    <CommandItem
+                                        key={associate.id}
+                                        value={associate.name}
+                                        onSelect={() => {
+                                            const newSelected = selectedAssociates.includes(associate.id)
+                                                ? selectedAssociates.filter(id => id !== associate.id)
+                                                : [...selectedAssociates, associate.id];
+                                            setSelectedAssociates(newSelected);
+                                        }}
+                                    >
+                                        <Check
+                                            className={cn("mr-2 h-4 w-4", selectedAssociates.includes(associate.id) ? "opacity-100" : "opacity-0")}
+                                        />
+                                        {associate.name}
+                                    </CommandItem>
+                                ))}
+                                </CommandGroup>
+                            </CommandList>
+                        </Command>
+                    </PopoverContent>
+                </Popover>
+            </div>
+            {(selectedAssociates.length > 0 || searchTerm) && (
+                <Button variant="ghost" onClick={() => {
+                    setSelectedAssociates([]);
+                    setSearchTerm('');
+                }}>Clear Filters</Button>
+            )}
+        </div>
+
         <div className="border rounded-lg">
             <Table>
                 <TableHeader>
@@ -73,7 +158,7 @@ export function PitchingLogDashboard() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {pitches.map(pitch => {
+                    {filteredPitches.map(pitch => {
                         const assignedUser = users.find(u => u.id === pitch.assignedTo);
                         const createdByUser = users.find(u => u.id === pitch.createdBy);
                         return (
@@ -119,9 +204,9 @@ export function PitchingLogDashboard() {
                     })}
                 </TableBody>
             </Table>
-             {pitches.length === 0 && (
+             {filteredPitches.length === 0 && (
                 <div className="text-center p-8 text-muted-foreground">
-                    No pitches have been created yet.
+                    No pitches match your filters.
                 </div>
             )}
         </div>

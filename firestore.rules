@@ -14,16 +14,12 @@ service cloud.firestore {
     }
 
     // == USERS ==
-    // Users can only view/edit their own profile.
-    // Admins (SPT) can view/edit any profile for management.
+    // A user can be created by any authenticated user, as long as the document ID matches their UID.
+    // A user can read/update their own profile.
+    // An SPT admin can read/update any user's profile.
     match /users/{userId} {
-      allow read: if request.auth != null && (request.auth.uid == userId || isSpt());
+      allow read, update: if request.auth != null && (request.auth.uid == userId || isSpt());
       allow create: if request.auth != null && request.auth.uid == userId;
-      allow update: if request.auth != null && (
-          (request.auth.uid == userId && !("role" in request.resource.data)) || // User can update their own profile, but not their role
-          isSpt() // SPT can update anything
-      );
-      // No delete rule for user profiles by default for safety.
     }
 
     // == TASKS ==

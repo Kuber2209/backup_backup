@@ -11,26 +11,9 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    if (loading) {
-      // Still checking auth state, do nothing.
-      return;
-    }
-
-    if (user) {
-      // We have a user object, decide where to send them.
-      if (user.status === 'pending') {
-        router.push('/pending-approval');
-      } else if (user.status === 'declined') {
-        router.push('/access-declined');
-      } else {
-        // User is active or has an undefined status (legacy users), send to dashboard.
-        router.push('/dashboard');
-      }
-    } else {
-      // No user, not loading, send to login.
-      router.push('/login');
-    }
-  }, [user, loading, router]);
+    // Force redirect to dashboard, bypassing login
+    router.push('/dashboard');
+  }, [router]);
 
   // Render a full-page loading indicator while the logic runs.
   return (

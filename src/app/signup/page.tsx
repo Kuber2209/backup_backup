@@ -1,6 +1,7 @@
 
 'use client';
 
+/*
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -54,8 +55,10 @@ function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+*/
 
 export default function SignupPage() {
+  /*
   const { signUp, signInWithGoogle, loading, user } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
@@ -197,4 +200,6 @@ export default function SignupPage() {
         </main>
     </div>
   );
+  */
+ return null;
 }

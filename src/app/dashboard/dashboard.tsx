@@ -13,6 +13,8 @@ import { Announcements } from '@/components/dashboard/announcements';
 import { OngoingTasksDashboard } from '@/components/dashboard/ongoing-tasks-dashboard';
 import { CalendarView } from '@/components/dashboard/calendar-view';
 import { Resources } from '@/components/dashboard/resources';
+import { PitchingDashboard } from '@/components/dashboard/pitching/pitching-dashboard';
+import { PitchingLogDashboard } from '@/components/dashboard/pitching/pitching-log-dashboard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export function Dashboard() {
@@ -48,6 +50,10 @@ export function Dashboard() {
                     {(isJPT || isAssociate) && <TabsTrigger value="my-tasks">My Tasks</TabsTrigger>}
                     
                     {(isJPT || isSPT) && <TabsTrigger value="live-tasks">Live Tasks</TabsTrigger>}
+
+                    <TabsTrigger value="pitching">Pitching</TabsTrigger>
+                    
+                    {(isJPT || isSPT) && <TabsTrigger value="pitching-log">Pitching Log</TabsTrigger>}
 
                     {(isJPT || isSPT) && <TabsTrigger value="team-logs">Team Logs</TabsTrigger>}
                 </TabsList>
@@ -88,6 +94,16 @@ export function Dashboard() {
                   <TabsContent value="live-tasks">
                     <OngoingTasksDashboard />
                   </TabsContent>
+                )}
+
+                <TabsContent value="pitching">
+                  <PitchingDashboard />
+                </TabsContent>
+
+                {(isJPT || isSPT) && (
+                    <TabsContent value="pitching-log">
+                        <PitchingLogDashboard />
+                    </TabsContent>
                 )}
 
                 {(isJPT || isSPT) && (

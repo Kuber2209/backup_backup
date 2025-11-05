@@ -100,3 +100,15 @@ export interface Task {
   isAnonymous?: boolean;
   voiceNoteUrl?: string;
 }
+
+export interface Pitch {
+    id: string;
+    companyName: string;
+    contactDetails?: string;
+    otherDetails?: string;
+    status: 'Open' | 'Assigned' | 'Pitched';
+    createdBy: string; // JPT or SPT userId
+    assignedTo?: string; // Associate userId
+    createdAt: string; // ISO string
+    pitchedAt?: string; // ISO string
+}

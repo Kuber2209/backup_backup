@@ -1,7 +1,7 @@
 
 
 import { db } from '@/lib/firebase';
-import type { User, Task, Announcement, AnnouncementAudience, Resource } from '@/lib/types';
+import type { User, Task, Announcement, AnnouncementAudience, Resource, Pitch } from '@/lib/types';
 import {
   collection,
   doc,
@@ -409,3 +409,34 @@ export const deleteResource = async (resourceId: string): Promise<void> => {
     const resourceRef = doc(db, 'resources', resourceId);
     await deleteDoc(resourceRef);
 };
+
+// == PITCHING FUNCTIONS ==
+
+// Create a new pitch
+export const createPitch = async (pitchData: Omit<Pitch, 'id'>): Promise<Pitch> => {
+    const pitchesCollection = collection(db, 'pitches');
+    const docRef = await addDoc(pitchesCollection, pitchData);
+    return { id: docRef.id, ...pitchData };
+}
+
+// Update a pitch
+export const updatePitch = async (pitchId: string, updates: Partial<Pitch>): Promise<void> => {
+    const pitchRef = doc(db, 'pitches', pitchId);
+    await updateDoc(pitchRef, updates);
+}
+
+// Delete a pitch
+export const deletePitch = async (pitchId: string): Promise<void> => {
+    const pitchRef = doc(db, 'pitches', pitchId);
+    await deleteDoc(pitchRef);
+}
+
+// Get all pitches with real-time updates
+export const getPitches = (callback: (pitches: Pitch[]) => void): (() => void) => {
+    const pitchesCollection = collection(db, 'pitches');
+    const q = query(pitchesCollection, orderBy('createdAt', 'desc'));
+    return onSnapshot(q, (querySnapshot) => {
+        const pitches = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Pitch));
+        callback(pitches);
+    });
+}

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, {createContext, useContext, useState, useEffect, ReactNode} from 'react';
@@ -68,7 +69,6 @@ async function fetchUserProfileWithRetry(fbUser: FirebaseUser, retries = 3, dela
                 avatar: fbUser.photoURL || `https://i.pravatar.cc/150?u=${fbUser.uid}`,
                 isOnHoliday: false,
                 status: isAdmin || isWhitelisted ? 'active' : 'pending',
-                notificationTokens: [],
             };
             
             await createUserProfile(newUser);

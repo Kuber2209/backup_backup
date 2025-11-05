@@ -11,7 +11,6 @@ export interface User {
   role: UserRole;
   avatar: string;
   email: string;
-  notificationTokens?: string[]; // For FCM
   isOnHoliday?: boolean;
   status?: UserStatus;
 }

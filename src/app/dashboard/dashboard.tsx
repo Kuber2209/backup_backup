@@ -14,93 +14,10 @@ import { OngoingTasksDashboard } from '@/components/dashboard/ongoing-tasks-dash
 import { CalendarView } from '@/components/dashboard/calendar-view';
 import { Resources } from '@/components/dashboard/resources';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { getMessaging, getToken } from 'firebase/messaging';
-import { app } from '@/lib/firebase';
-import { useToast } from '@/hooks/use-toast';
-import { updateUserProfile } from '@/services/firestore';
-import { arrayUnion } from 'firebase/firestore';
-
 
 export function Dashboard() {
   const { user: currentUser } = useAuth();
-  const { toast } = useToast();
   
-  useEffect(() => {
-    if (!currentUser || typeof window === 'undefined') return;
-
-    const setupNotifications = async () => {
-      // 1. Check for browser support
-      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        console.log("Push notifications are not supported by this browser.");
-        return;
-      }
-
-      try {
-        const messaging = getMessaging(app);
-
-        // 2. Request permission
-        if (Notification.permission === 'default') {
-          console.log('Requesting notification permission...');
-          const permission = await Notification.requestPermission();
-          if (permission !== 'granted') {
-            console.log('User denied notification permission.');
-            return;
-          }
-        }
-
-        if (Notification.permission === 'denied') {
-          console.log('Notification permission has been denied.');
-          return;
-        }
-
-        // 3. Get token
-        console.log('Getting FCM token...');
-        const currentToken = await getToken(messaging, {
-          vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
-        });
-
-        // 4. Save token to Firestore
-        if (currentToken) {
-          console.log('FCM Token received:', currentToken);
-          if (!currentUser.notificationTokens?.includes(currentToken)) {
-            console.log('Saving new token to user profile...');
-            await updateUserProfile(currentUser.id, {
-              notificationTokens: arrayUnion(currentToken),
-            });
-            toast({
-              title: "Notifications Enabled!",
-              description: "You'll now receive updates on this device.",
-            });
-          } else {
-            console.log('This device token is already saved.');
-          }
-        } else {
-          console.log('No registration token available. Request permission to generate one.');
-        }
-      } catch (err) {
-        console.error("An error occurred while setting up notifications:", err);
-        let description = "Could not enable notifications.";
-        if (err instanceof Error && err.message.includes('permission-blocked')) {
-            description = "Notification permission is blocked. Please enable it in your browser settings.";
-        }
-        toast({
-          variant: 'destructive',
-          title: "Notification Setup Failed",
-          description: description,
-        });
-      }
-    };
-    
-    // Delay setup slightly to ensure everything is loaded
-    const timer = setTimeout(() => {
-      setupNotifications();
-    }, 3000);
-
-    return () => clearTimeout(timer);
-
-  }, [currentUser, toast]);
-
-
   if (!currentUser) {
     return <div className="flex items-center justify-center min-h-screen">Loading user data...</div>
   }

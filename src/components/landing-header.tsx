@@ -3,12 +3,13 @@
 import Link from 'next/link';
 import { ThemeToggle } from './theme-toggle';
 
-function Logo(props: React.SVGProps<SVGSVGElement>) {
-    return (
-        <svg fill="none" viewBox="0 0 28 28" height="28" width="28" {...props}>
-            <path className="fill-primary" d="M2.333 0A2.333 2.333 0 0 0 0 2.333V14c0 7.732 6.268 14 14 14 1.059 0 2.09-.117 3.082-.34.965-.217 1.585-1.118 1.585-2.107v-2.22a4.667 4.667 0 0 1 4.666-4.666h2.334A2.333 2.333 0 0 0 28 16.333v-14A2.333 2.333 0 0 0 25.667 0H21a2.333 2.333 0 0 0-2.333 2.333V14a4.667 4.667 0 0 1-9.334 0V2.333A2.333 2.333 0 0 0 7 0H2.333Z"/>
-        </svg>
-    )
+function TieIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M12 22s-4-4-4-9V3h8v10s-4 4-4 9z"/>
+      <path d="M10.5 7.5a1.5 1.5 0 0 1 3 0"/>
+    </svg>
+  );
 }
 
 function HamburgerIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -34,7 +35,7 @@ export function LandingHeader() {
                 <div className="relative flex items-center gap-x-4">
                     <div className="order-1 flex grow basis-0">
                         <Link href="/login" className="order-1 flex items-center gap-2 font-headline text-xl font-bold">
-                            <Logo />
+                            <TieIcon className="h-7 w-7 text-primary" />
                             <span>PUrge BPHC</span>
                         </Link>
                     </div>

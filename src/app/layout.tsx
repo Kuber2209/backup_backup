@@ -1,10 +1,12 @@
 
+
 import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from '@/components/theme-provider';
 import Link from 'next/link';
 import { AuthProvider } from '@/lib/auth-provider';
+import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 export const metadata: Metadata = {
   title: 'PUrge BPHC',
@@ -32,6 +34,7 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
+            <FirebaseErrorListener />
             <div className="flex-grow">
               {children}
             </div>

@@ -20,6 +20,9 @@ import {
   limit,
   getCountFromServer,
 } from 'firebase/firestore';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
+
 
 // == USER FUNCTIONS ==
 
@@ -29,11 +32,12 @@ export const createUserProfile = (user: User): void => {
   // No 'await' here, chain .catch() for error handling
   setDoc(userRef, user, { merge: true })
     .catch(async (serverError) => {
-        // This is where we will eventually generate and emit a contextual error.
-        // For now, we log the server error to get more details.
-        // In a production app, this would be an observability event.
-        console.error("Error creating user profile:", serverError);
-        // The user will see a generic error, but we'll have logs to debug.
+        const permissionError = new FirestorePermissionError({
+          path: userRef.path,
+          operation: 'create',
+          requestResourceData: user,
+        });
+        errorEmitter.emit('permission-error', permissionError);
     });
 };
 

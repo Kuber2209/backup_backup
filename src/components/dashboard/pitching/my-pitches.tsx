@@ -15,6 +15,39 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
+function EditableCell({ value, onSave }: { value: string | undefined; onSave: (value: string) => void }) {
+    const [localValue, setLocalValue] = useState(value || '');
+    const [isEditing, setIsEditing] = useState(false);
+
+    const handleSave = () => {
+        onSave(localValue);
+        setIsEditing(false);
+    }
+    
+    useEffect(() => {
+        setLocalValue(value || '');
+    }, [value]);
+
+    if (isEditing) {
+        return (
+            <Input 
+                value={localValue}
+                onChange={(e) => setLocalValue(e.target.value)}
+                onBlur={handleSave}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); handleSave(); } }}
+                autoFocus
+                className="h-8"
+            />
+        )
+    }
+
+    return (
+        <div onClick={() => setIsEditing(true)} className="min-h-[32px] w-full p-1.5 cursor-pointer rounded-md hover:bg-muted text-sm">
+            {value || <span className="text-muted-foreground text-xs italic">empty</span>}
+        </div>
+    )
+}
+
 export function MyPitches({ pitchLists, users }: { pitchLists: PitchList[], users: User[] }) {
   if (pitchLists.length === 0) {
     return (
@@ -125,39 +158,4 @@ function PitchContactsTable({ pitchListId }: { pitchListId: string }) {
         </Table>
     </ScrollArea>
   );
-}
-
-
-function EditableCell({ value, onSave }: { value: string | undefined; onSave: (value: string) => void }) {
-    const [localValue, setLocalValue] = useState(value || '');
-    const [isEditing, setIsEditing] = useState(false);
-
-    const handleSave = () => {
-        onSave(localValue);
-        setIsEditing(false);
-    }
-    
-    // Update local state if the prop value changes from outside
-    useEffect(() => {
-        setLocalValue(value || '');
-    }, [value]);
-
-    if (isEditing) {
-        return (
-            <Input 
-                value={localValue}
-                onChange={(e) => setLocalValue(e.target.value)}
-                onBlur={handleSave}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') handleSave() }}
-                autoFocus
-                className="h-8"
-            />
-        )
-    }
-
-    return (
-        <div onClick={() => setIsEditing(true)} className="min-h-[32px] p-1.5 cursor-pointer rounded-md hover:bg-muted text-sm">
-            {value || <span className="text-muted-foreground text-xs italic">empty</span>}
-        </div>
-    )
 }

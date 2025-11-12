@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -34,6 +34,39 @@ const pitchListSchema = z.object({
 
 type PitchListFormData = z.infer<typeof pitchListSchema>;
 
+function EditableCell({ value, onSave }: { value: string | undefined; onSave: (value: string) => void }) {
+    const [localValue, setLocalValue] = useState(value || '');
+    const [isEditing, setIsEditing] = useState(false);
+
+    const handleSave = () => {
+        onSave(localValue);
+        setIsEditing(false);
+    }
+    
+    useEffect(() => {
+        setLocalValue(value || '');
+    }, [value]);
+
+    if (isEditing) {
+        return (
+            <Input 
+                value={localValue}
+                onChange={(e) => setLocalValue(e.target.value)}
+                onBlur={handleSave}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); handleSave(); } }}
+                autoFocus
+                className="h-8"
+            />
+        )
+    }
+
+    return (
+        <div onClick={() => setIsEditing(true)} className="min-h-[32px] w-full p-1.5 cursor-pointer rounded-md hover:bg-muted text-sm">
+            {value || <span className="text-muted-foreground text-xs italic">empty</span>}
+        </div>
+    )
+}
+
 export function CreatePitchListForm({ users }: { users: User[] }) {
   const { user: currentUser } = useAuth();
   const [open, setOpen] = useState(false);
@@ -41,7 +74,7 @@ export function CreatePitchListForm({ users }: { users: User[] }) {
   const [bulkText, setBulkText] = useState('');
   const { toast } = useToast();
   
-  const { register, handleSubmit, control, formState: { errors, isSubmitting }, reset, setValue } = useForm<PitchListFormData>({
+  const { register, handleSubmit, control, formState: { errors, isSubmitting }, reset, setValue, trigger } = useForm<PitchListFormData>({
     resolver: zodResolver(pitchListSchema),
     defaultValues: {
       title: '',
@@ -161,7 +194,7 @@ export function CreatePitchListForm({ users }: { users: User[] }) {
                 
                 <Label>Company Contacts</Label>
                 <div className="mt-2 border rounded-lg overflow-hidden flex-1 flex flex-col">
-                    <ScrollArea className="flex-1">
+                    <ScrollArea className="h-[400px]">
                         <Table>
                             <TableHeader className="sticky top-0 bg-muted/50 z-10">
                                 <TableRow>
@@ -177,12 +210,30 @@ export function CreatePitchListForm({ users }: { users: User[] }) {
                             <TableBody>
                                 {fields.map((field, index) => (
                                     <TableRow key={field.id}>
-                                        <TableCell><Input {...register(`contacts.${index}.companyName`)} placeholder="Company Name..." /></TableCell>
-                                        <TableCell><Input {...register(`contacts.${index}.hrName`)} placeholder="Name..."/></TableCell>
-                                        <TableCell><Input {...register(`contacts.${index}.hrLinkedIn`)} placeholder="URL..."/></TableCell>
-                                        <TableCell><Input {...register(`contacts.${index}.contact`)} placeholder="Phone..."/></TableCell>
-                                        <TableCell><Input {...register(`contacts.${index}.emailId`)} placeholder="Email..."/></TableCell>
-                                        <TableCell><Input {...register(`contacts.${index}.remarks`)} placeholder="Notes..."/></TableCell>
+                                        <TableCell>
+                                            <EditableCell 
+                                                value={field.companyName} 
+                                                onSave={(value) => {
+                                                    setValue(`contacts.${index}.companyName`, value);
+                                                    trigger(`contacts.${index}.companyName`);
+                                                }}
+                                            />
+                                            {errors.contacts?.[index]?.companyName && <p className="text-xs text-destructive mt-1">{errors.contacts?.[index]?.companyName?.message}</p>}
+                                        </TableCell>
+                                        <TableCell><EditableCell value={field.hrName} onSave={(val) => setValue(`contacts.${index}.hrName`, val)} /></TableCell>
+                                        <TableCell><EditableCell value={field.hrLinkedIn} onSave={(val) => setValue(`contacts.${index}.hrLinkedIn`, val)} /></TableCell>
+                                        <TableCell><EditableCell value={field.contact} onSave={(val) => setValue(`contacts.${index}.contact`, val)} /></TableCell>
+                                        <TableCell>
+                                            <EditableCell 
+                                                value={field.emailId} 
+                                                onSave={(value) => {
+                                                    setValue(`contacts.${index}.emailId`, value);
+                                                    trigger(`contacts.${index}.emailId`);
+                                                }} 
+                                            />
+                                            {errors.contacts?.[index]?.emailId && <p className="text-xs text-destructive mt-1">{errors.contacts?.[index]?.emailId?.message}</p>}
+                                        </TableCell>
+                                        <TableCell><EditableCell value={field.remarks} onSave={(val) => setValue(`contacts.${index}.remarks`, val)} /></TableCell>
                                         <TableCell>
                                             <Button variant="ghost" size="icon" type="button" onClick={() => remove(index)} disabled={fields.length <= 1}>
                                                 <Trash2 className="h-4 w-4 text-destructive" />

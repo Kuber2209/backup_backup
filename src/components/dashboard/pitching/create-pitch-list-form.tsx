@@ -55,6 +55,9 @@ const EditableCell = ({ value, onSave }: { value: string | undefined, onSave: (v
   
   return (
     <Popover open={isOpen} onOpenChange={(open) => {
+        if (!open) {
+          handleSave();
+        }
         setIsOpen(open);
     }}>
       <PopoverTrigger asChild>

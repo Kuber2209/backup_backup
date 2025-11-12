@@ -15,6 +15,7 @@ import type { User, PitchList, PitchContact } from '@/lib/types';
 import { createPitchListWithContacts } from '@/services/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Textarea } from '@/components/ui/textarea';
 
 const pitchContactSchema = z.object({
   companyName: z.string().min(1, 'Company Name is required.'),
@@ -35,9 +36,11 @@ type PitchListFormData = z.infer<typeof pitchListSchema>;
 export function CreatePitchListForm({ users }: { users: User[] }) {
   const { user: currentUser } = useAuth();
   const [open, setOpen] = useState(false);
+  const [showBulkImport, setShowBulkImport] = useState(false);
+  const [bulkText, setBulkText] = useState('');
   const { toast } = useToast();
   
-  const { register, handleSubmit, control, formState: { errors, isSubmitting }, reset } = useForm<PitchListFormData>({
+  const { register, handleSubmit, control, formState: { errors, isSubmitting }, reset, setValue } = useForm<PitchListFormData>({
     resolver: zodResolver(pitchListSchema),
     defaultValues: {
       title: '',
@@ -45,10 +48,35 @@ export function CreatePitchListForm({ users }: { users: User[] }) {
     },
   });
   
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control,
     name: 'contacts',
   });
+
+  const handleBulkImport = () => {
+    const rows = bulkText.trim().split('\n');
+    if (rows.length === 0 || (rows.length === 1 && rows[0].trim() === '')) {
+      toast({ variant: 'destructive', title: 'No data to import', description: 'Please paste some data from your spreadsheet.'});
+      return;
+    }
+
+    const newContacts = rows.map(row => {
+      const columns = row.split('\t'); // Tab-separated for Excel/Sheets copy-paste
+      return {
+        companyName: columns[0] || '',
+        hrName: columns[1] || '',
+        hrLinkedIn: columns[2] || '',
+        contact: columns[3] || '',
+        emailId: columns[4] || '',
+        remarks: columns[5] || '',
+      };
+    });
+
+    replace(newContacts);
+    toast({ title: `${newContacts.length} contacts imported successfully.` });
+    setShowBulkImport(false);
+    setBulkText('');
+  };
 
   const onSubmit = async (data: PitchListFormData) => {
     if (!currentUser) return;
@@ -83,63 +111,87 @@ export function CreatePitchListForm({ users }: { users: User[] }) {
           <DialogTitle className="font-headline">Create New Pitch List</DialogTitle>
           <DialogDescription>Add a title and one or more company contacts to this list.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} id="pitch-list-form" className="flex-1 flex flex-col overflow-hidden">
-            <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                    <Label htmlFor="title">List Title</Label>
-                    <Input id="title" {...register('title')} />
-                    {errors.title && <p className="text-sm text-destructive">{errors.title.message}</p>}
+        
+        {showBulkImport ? (
+            <div className="flex-1 flex flex-col overflow-hidden space-y-4">
+                <h3 className="font-medium">Import from Spreadsheet</h3>
+                <p className="text-sm text-muted-foreground">
+                    Copy columns from your spreadsheet (Excel, Google Sheets) and paste them below. Ensure the columns are in this order: <br/>
+                    <code className="text-xs p-1 bg-muted rounded-sm">Company Name, HR Name, HR LinkedIn, Contact, Email ID, Remarks</code>
+                </p>
+                <Textarea 
+                    value={bulkText}
+                    onChange={(e) => setBulkText(e.target.value)}
+                    placeholder="Paste your data here..."
+                    className="flex-1 font-mono text-xs"
+                />
+                <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setShowBulkImport(false)}>Cancel</Button>
+                    <Button onClick={handleBulkImport}>Import Contacts</Button>
                 </div>
             </div>
-            
-            <Label>Company Contacts</Label>
-            <div className="mt-2 border rounded-lg overflow-hidden flex-1 flex flex-col">
-                <ScrollArea className="flex-1">
-                    <Table>
-                        <TableHeader className="sticky top-0 bg-muted/50 z-10">
-                            <TableRow>
-                                <TableHead className="w-[200px]">Company Name</TableHead>
-                                <TableHead>HR Name</TableHead>
-                                <TableHead>HR LinkedIn</TableHead>
-                                <TableHead>Contact</TableHead>
-                                <TableHead>Email ID</TableHead>
-                                <TableHead>Remarks</TableHead>
-                                <TableHead className="w-[50px]"></TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {fields.map((field, index) => (
-                                <TableRow key={field.id}>
-                                    <TableCell><Input {...register(`contacts.${index}.companyName`)} placeholder="Company Name..." /></TableCell>
-                                    <TableCell><Input {...register(`contacts.${index}.hrName`)} placeholder="Name..."/></TableCell>
-                                    <TableCell><Input {...register(`contacts.${index}.hrLinkedIn`)} placeholder="URL..."/></TableCell>
-                                    <TableCell><Input {...register(`contacts.${index}.contact`)} placeholder="Phone..."/></TableCell>
-                                    <TableCell><Input {...register(`contacts.${index}.emailId`)} placeholder="Email..."/></TableCell>
-                                    <TableCell><Input {...register(`contacts.${index}.remarks`)} placeholder="Notes..."/></TableCell>
-                                    <TableCell>
-                                        <Button variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 1}>
-                                            <Trash2 className="h-4 w-4 text-destructive" />
-                                        </Button>
-                                    </TableCell>
+        ) : (
+            <form onSubmit={handleSubmit(onSubmit)} id="pitch-list-form" className="flex-1 flex flex-col overflow-hidden">
+                <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="title">List Title</Label>
+                        <Input id="title" {...register('title')} />
+                        {errors.title && <p className="text-sm text-destructive">{errors.title.message}</p>}
+                    </div>
+                </div>
+                
+                <Label>Company Contacts</Label>
+                <div className="mt-2 border rounded-lg overflow-hidden flex-1 flex flex-col">
+                    <ScrollArea className="flex-1">
+                        <Table>
+                            <TableHeader className="sticky top-0 bg-muted/50 z-10">
+                                <TableRow>
+                                    <TableHead className="w-[200px]">Company Name</TableHead>
+                                    <TableHead>HR Name</TableHead>
+                                    <TableHead>HR LinkedIn</TableHead>
+                                    <TableHead>Contact</TableHead>
+                                    <TableHead>Email ID</TableHead>
+                                    <TableHead>Remarks</TableHead>
+                                    <TableHead className="w-[50px]"></TableHead>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </ScrollArea>
-                {errors.contacts?.root && <p className="p-4 text-sm text-destructive">{errors.contacts.root.message}</p>}
-            </div>
-             <div className="flex justify-start gap-2 mt-4">
-                <Button type="button" variant="outline" onClick={() => append({ companyName: '', hrName: '', hrLinkedIn: '', contact: '', emailId: '', remarks: '' })}>
-                    <PlusCircle className="mr-2 h-4 w-4" /> Add Row
-                </Button>
-            </div>
-        </form>
-        <DialogFooter>
-          <Button type="submit" form="pitch-list-form" disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Create List
-          </Button>
-        </DialogFooter>
+                            </TableHeader>
+                            <TableBody>
+                                {fields.map((field, index) => (
+                                    <TableRow key={field.id}>
+                                        <TableCell><Input {...register(`contacts.${index}.companyName`)} placeholder="Company Name..." /></TableCell>
+                                        <TableCell><Input {...register(`contacts.${index}.hrName`)} placeholder="Name..."/></TableCell>
+                                        <TableCell><Input {...register(`contacts.${index}.hrLinkedIn`)} placeholder="URL..."/></TableCell>
+                                        <TableCell><Input {...register(`contacts.${index}.contact`)} placeholder="Phone..."/></TableCell>
+                                        <TableCell><Input {...register(`contacts.${index}.emailId`)} placeholder="Email..."/></TableCell>
+                                        <TableCell><Input {...register(`contacts.${index}.remarks`)} placeholder="Notes..."/></TableCell>
+                                        <TableCell>
+                                            <Button variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 1}>
+                                                <Trash2 className="h-4 w-4 text-destructive" />
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </ScrollArea>
+                    {errors.contacts?.root && <p className="p-4 text-sm text-destructive">{errors.contacts.root.message}</p>}
+                </div>
+                <div className="flex justify-start gap-2 mt-4">
+                    <Button type="button" variant="outline" onClick={() => append({ companyName: '', hrName: '', hrLinkedIn: '', contact: '', emailId: '', remarks: '' })}>
+                        <PlusCircle className="mr-2 h-4 w-4" /> Add Row
+                    </Button>
+                    <Button type="button" variant="secondary" onClick={() => setShowBulkImport(true)}>
+                        <Sheet className="mr-2 h-4 w-4" /> Import from Sheet
+                    </Button>
+                </div>
+                 <DialogFooter className="pt-4">
+                    <Button type="submit" form="pitch-list-form" disabled={isSubmitting}>
+                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Create List
+                    </Button>
+                </DialogFooter>
+            </form>
+        )}
       </DialogContent>
     </Dialog>
   );

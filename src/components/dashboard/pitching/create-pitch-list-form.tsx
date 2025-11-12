@@ -55,9 +55,6 @@ const EditableCell = ({ value, onSave }: { value: string | undefined, onSave: (v
   
   return (
     <Popover open={isOpen} onOpenChange={(open) => {
-        if (!open && isOpen) { // Only save on close
-            handleSave();
-        }
         setIsOpen(open);
     }}>
       <PopoverTrigger asChild>
@@ -70,25 +67,21 @@ const EditableCell = ({ value, onSave }: { value: string | undefined, onSave: (v
           {value || "empty"}
         </div>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-2" align="start">
+      <PopoverContent className="w-80 p-2" align="start" onEscapeKeyDown={handleSave} onInteractOutside={handleSave}>
         <div className="grid gap-4">
           <div className="space-y-2">
             <h4 className="font-medium leading-none">Edit cell</h4>
             <p className="text-sm text-muted-foreground">
-              Make your changes below. It will save when you click away.
+              Make your changes below.
             </p>
           </div>
           <Textarea
             value={localValue}
             onChange={(e) => setLocalValue(e.target.value)}
             autoFocus
-            onKeyDown={(e) => {
-                if (e.key === 'Escape') {
-                    setIsOpen(false);
-                }
-            }}
             className="min-h-[100px]"
           />
+           <Button onClick={handleSave}>Save</Button>
         </div>
       </PopoverContent>
     </Popover>
@@ -229,8 +222,8 @@ export function CreatePitchListForm({ users }: { users: User[] }) {
                 
                 <Label>Company Contacts</Label>
                 <div className="mt-2 border rounded-lg overflow-hidden flex-1 flex flex-col">
-                    <ScrollArea className="flex-1">
-                        <Table>
+                    <ScrollArea className="flex-1" orientation="both">
+                        <Table className="min-w-max">
                             <TableHeader className="sticky top-0 bg-muted/50 z-10">
                                 <TableRow>
                                     <TableHead className="w-[200px]">Company Name</TableHead>

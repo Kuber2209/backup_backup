@@ -1,13 +1,13 @@
 
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, ReactNode } from 'react';
 import { getApps, initializeApp, type FirebaseOptions } from 'firebase/app';
 import { AuthProvider } from '@/hooks/use-auth';
-import { auth as getFirebaseAuth } from '@/lib/firebase'; // Import the getter
+import { auth as getFirebaseAuth } from '@/lib/firebase';
 import { Loader2 } from 'lucide-react';
 
-export function FirebaseClientProvider({ children }: { children: React.ReactNode }) {
+export function FirebaseClientProvider({ children }: { children: ReactNode }) {
   const [firebaseInitialized, setFirebaseInitialized] = useState(false);
 
   useEffect(() => {
@@ -20,14 +20,10 @@ export function FirebaseClientProvider({ children }: { children: React.ReactNode
           }
           const firebaseConfig: FirebaseOptions = await response.json();
           initializeApp(firebaseConfig);
-          
-          // Eagerly initialize auth to be ready for the AuthProvider
-          getFirebaseAuth();
-
+          getFirebaseAuth(); // Eagerly initialize auth
         } catch (error) {
           console.error('Firebase initialization error:', error);
-          // Handle the error appropriately, maybe show an error message to the user
-          return;
+          // Don't render a loader here, let AuthProvider handle UI
         }
       }
       setFirebaseInitialized(true);

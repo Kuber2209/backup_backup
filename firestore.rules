@@ -1,4 +1,3 @@
-
 rules_version = '2';
 
 service cloud.firestore {
@@ -8,35 +7,44 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == userId;
     }
 
+    // Safe role checking that won't break for new users
+    function userExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
     function getRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      // Only try to get role if user document exists
+      return userExists() 
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role 
+        : 'user'; // Default to 'user' role for new accounts
     }
     
     function isSPT() {
-      return getRole() == 'SPT';
+      return request.auth != null && getRole() == 'SPT';
     }
 
     function isJPT() {
-      return getRole() == 'JPT';
+      return request.auth != null && getRole() == 'JPT';
     }
     
     // == USERS ==
-    // This collection stores user profile information.
     match /users/{userId} {
       // ANY authenticated user can CREATE their OWN user document.
-      // This is the most important rule to fix the signup/login loop.
-      allow create: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && 
+                       request.auth.uid == userId;
 
       // Users can READ or UPDATE their OWN document.
-      // An SPT (Super Admin) can READ or UPDATE ANY user document.
-      allow read, update: if isOwner(userId) || isSPT();
+      // An SPT can READ or UPDATE ANY user document.
+      allow read: if isOwner(userId) || isSPT();
       
-      // Only SPTs can delete users (a destructive action).
+      // Users can update their own profile, SPTs can update any profile
+      allow update: if isOwner(userId) || isSPT();
+      
+      // Only SPTs can delete users.
       allow delete: if isSPT();
     }
 
     // == TASKS ==
-    // This collection stores all tasks.
     match /tasks/{taskId} {
       // ANY authenticated user can read tasks.
       allow read: if request.auth != null;
@@ -46,13 +54,17 @@ service cloud.firestore {
       
       // Subcollection for messages within a task.
       match /messages/{messageId} {
-         // Any user who can read the task can read/write messages.
-         allow read, write: if request.auth != null;
+         // Any authenticated user can read and create messages.
+         allow read, create: if request.auth != null;
+         
+         // Users can only update/delete their own messages (if you track ownership).
+         // Comment this out if you want all users to edit all messages.
+         allow update, delete: if request.auth != null && 
+                                  resource.data.userId == request.auth.uid;
       }
     }
 
     // == ANNOUNCEMENTS ==
-    // This collection stores all announcements.
     match /announcements/{announcementId} {
       // ANY authenticated user can read announcements.
       allow read: if request.auth != null;
@@ -62,9 +74,8 @@ service cloud.firestore {
     }
     
     // == RESOURCES ==
-    // This collection stores permanent resources like links and documents.
     match /resources/{resourceId} {
-       // ANY authenticated user can read and update resources (e.g., to add comments).
+       // ANY authenticated user can read and update resources.
        allow read, update: if request.auth != null;
        
        // Only JPTs or SPTs can create or delete resources.
@@ -73,7 +84,7 @@ service cloud.firestore {
 
     // == PITCH LISTS ==
     match /pitchLists/{pitchListId} {
-      // Any authenticated user can read the lists of pitches.
+      // Any authenticated user can read and write pitch lists.
       allow read, write: if request.auth != null;
 
       // Subcollection for contacts within a pitch list.

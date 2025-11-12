@@ -9,6 +9,7 @@ service cloud.firestore {
 
     // Safe role checking that won't break for new users
     function userExists() {
+      // Use the uid from the auth token, not from the resource
       return exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
@@ -29,15 +30,16 @@ service cloud.firestore {
     
     // == USERS ==
     match /users/{userId} {
-      // ANY authenticated user can CREATE a user document.
-      // The app logic ensures they only create their own.
-      allow create: if request.auth != null;
+      // Allow any authenticated user to create their OWN document.
+      // This is secure because the app logic ensures they create a document with their own UID.
+      allow create: if request.auth != null && request.auth.uid == userId;
 
-      // Users can READ or UPDATE their OWN document.
-      // An SPT can READ or UPDATE ANY user document.
+      // Users can READ their OWN document.
+      // SPTs can READ ANY user document.
       allow read: if isOwner(userId) || isSPT();
       
-      // Users can update their own profile, SPTs can update any profile
+      // Users can UPDATE their own profile.
+      // SPTs can UPDATE ANY profile (for role changes, etc.).
       allow update: if isOwner(userId) || isSPT();
       
       // Only SPTs can delete users.
@@ -58,7 +60,6 @@ service cloud.firestore {
          allow read, create: if request.auth != null;
          
          // Users can only update/delete their own messages (if you track ownership).
-         // Comment this out if you want all users to edit all messages.
          allow update, delete: if request.auth != null && 
                                   resource.data.userId == request.auth.uid;
       }

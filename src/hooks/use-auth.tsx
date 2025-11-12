@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, ReactNode } from 'react';
@@ -55,7 +56,8 @@ const manageUserSession = async (fbUser: FirebaseUser): Promise<{ userProfile: U
             status: isAdmin || isWhitelisted ? 'active' : 'pending',
         };
         
-        await createUserProfile(newUser);
+        // This function now handles its own errors
+        createUserProfile(newUser);
         userProfile = newUser;
     }
 

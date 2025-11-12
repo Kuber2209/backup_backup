@@ -1,4 +1,5 @@
 
+
 import { db } from '@/lib/firebase';
 import type { User, Task, Announcement, AnnouncementAudience, Resource, PitchList, PitchContact } from '@/lib/types';
 import {
@@ -23,9 +24,17 @@ import {
 // == USER FUNCTIONS ==
 
 // Create or update a user profile
-export const createUserProfile = async (user: User): Promise<void> => {
+export const createUserProfile = (user: User): void => {
   const userRef = doc(db, 'users', user.id);
-  await setDoc(userRef, user, { merge: true });
+  // No 'await' here, chain .catch() for error handling
+  setDoc(userRef, user, { merge: true })
+    .catch(async (serverError) => {
+        // This is where we will eventually generate and emit a contextual error.
+        // For now, we log the server error to get more details.
+        // In a production app, this would be an observability event.
+        console.error("Error creating user profile:", serverError);
+        // The user will see a generic error, but we'll have logs to debug.
+    });
 };
 
 // Update a user profile

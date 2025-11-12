@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useForm, useFieldArray, useFormContext } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
@@ -17,10 +17,7 @@ import { createPitchListWithContacts } from '@/services/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { cn } from '@/lib/utils';
 
-// Removed .email() validation
 const pitchContactSchema = z.object({
   companyName: z.string(),
   hrName: z.string().optional(),
@@ -37,57 +34,46 @@ const pitchListSchema = z.object({
 
 type PitchListFormData = z.infer<typeof pitchListSchema>;
 
-const EditableCell = ({ value, onSave }: { value: string | undefined, onSave: (value: string) => void }) => {
+const EditableCell = ({ value, onSave, fieldName }: { value: string | undefined, onSave: (value: string) => void, fieldName: string }) => {
   const [localValue, setLocalValue] = useState(value || '');
-  const [isOpen, setIsOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
-  // This effect correctly syncs the local state when the popover opens with the external value.
   useEffect(() => {
-    if (isOpen) {
-      setLocalValue(value || '');
-    }
-  }, [isOpen, value]);
+    setLocalValue(value || '');
+  }, [value]);
 
   const handleSave = () => {
     onSave(localValue);
-    setIsOpen(false);
+    setIsEditing(false);
   };
-  
+
+  if (isEditing) {
+    return (
+      <Input
+        value={localValue}
+        onChange={(e) => setLocalValue(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === 'Escape') {
+            e.preventDefault();
+            handleSave();
+          }
+        }}
+        autoFocus
+        className="h-8"
+        aria-label={`Edit ${fieldName}`}
+      />
+    );
+  }
+
   return (
-    <Popover open={isOpen} onOpenChange={(open) => {
-        if (!open) {
-          handleSave();
-        }
-        setIsOpen(open);
-    }}>
-      <PopoverTrigger asChild>
-        <div
-          className={cn(
-            "min-h-[32px] w-full p-1.5 cursor-pointer rounded-md hover:bg-muted/50 text-sm truncate",
-            !value && "text-muted-foreground italic"
-          )}
-        >
-          {value || "empty"}
-        </div>
-      </PopoverTrigger>
-      <PopoverContent className="w-80 p-2" align="start" onEscapeKeyDown={handleSave} onInteractOutside={handleSave}>
-        <div className="grid gap-4">
-          <div className="space-y-2">
-            <h4 className="font-medium leading-none">Edit cell</h4>
-            <p className="text-sm text-muted-foreground">
-              Make your changes below.
-            </p>
-          </div>
-          <Textarea
-            value={localValue}
-            onChange={(e) => setLocalValue(e.target.value)}
-            autoFocus
-            className="min-h-[100px]"
-          />
-           <Button onClick={handleSave}>Save</Button>
-        </div>
-      </PopoverContent>
-    </Popover>
+    <div
+      onClick={() => setIsEditing(true)}
+      className="min-h-[32px] w-full p-1.5 cursor-pointer rounded-md hover:bg-muted/50 text-sm truncate"
+      title={value || "Click to edit"}
+    >
+      {value || <span className="text-muted-foreground italic">empty</span>}
+    </div>
   );
 };
 
@@ -99,7 +85,7 @@ export function CreatePitchListForm({ users }: { users: User[] }) {
   const [bulkText, setBulkText] = useState('');
   const { toast } = useToast();
   
-  const { register, handleSubmit, control, formState: { errors, isSubmitting }, reset, setValue, getValues } = useForm<PitchListFormData>({
+  const { register, handleSubmit, control, formState: { errors, isSubmitting }, reset, setValue } = useForm<PitchListFormData>({
     resolver: zodResolver(pitchListSchema),
     defaultValues: {
       title: '',
@@ -192,7 +178,7 @@ export function CreatePitchListForm({ users }: { users: User[] }) {
       <DialogContent className="max-w-6xl w-full h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="font-headline">Create New Pitch List</DialogTitle>
-          <DialogDescription>Add a title and company contacts. Click a cell to edit its content in a popup.</DialogDescription>
+          <DialogDescription>Add a title and company contacts. Click a cell to edit its content.</DialogDescription>
         </DialogHeader>
         
         {showBulkImport ? (
@@ -239,24 +225,21 @@ export function CreatePitchListForm({ users }: { users: User[] }) {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {fields.map((field, index) => {
-                                  const contact = getValues(`contacts.${index}`);
-                                  return (
+                                {fields.map((field, index) => (
                                     <TableRow key={field.id}>
-                                        <TableCell><EditableCell value={contact.companyName} onSave={(val) => handleCellSave(index, 'companyName', val)} /></TableCell>
-                                        <TableCell><EditableCell value={contact.hrName} onSave={(val) => handleCellSave(index, 'hrName', val)} /></TableCell>
-                                        <TableCell><EditableCell value={contact.hrLinkedIn} onSave={(val) => handleCellSave(index, 'hrLinkedIn', val)} /></TableCell>
-                                        <TableCell><EditableCell value={contact.contact} onSave={(val) => handleCellSave(index, 'contact', val)} /></TableCell>
-                                        <TableCell><EditableCell value={contact.emailId} onSave={(val) => handleCellSave(index, 'emailId', val)} /></TableCell>
-                                        <TableCell><EditableCell value={contact.remarks} onSave={(val) => handleCellSave(index, 'remarks', val)} /></TableCell>
+                                        <TableCell><EditableCell fieldName="Company Name" value={field.companyName} onSave={(val) => handleCellSave(index, 'companyName', val)} /></TableCell>
+                                        <TableCell><EditableCell fieldName="HR Name" value={field.hrName} onSave={(val) => handleCellSave(index, 'hrName', val)} /></TableCell>
+                                        <TableCell><EditableCell fieldName="HR LinkedIn" value={field.hrLinkedIn} onSave={(val) => handleCellSave(index, 'hrLinkedIn', val)} /></TableCell>
+                                        <TableCell><EditableCell fieldName="Contact" value={field.contact} onSave={(val) => handleCellSave(index, 'contact', val)} /></TableCell>
+                                        <TableCell><EditableCell fieldName="Email ID" value={field.emailId} onSave={(val) => handleCellSave(index, 'emailId', val)} /></TableCell>
+                                        <TableCell><EditableCell fieldName="Remarks" value={field.remarks} onSave={(val) => handleCellSave(index, 'remarks', val)} /></TableCell>
                                         <TableCell className="sticky right-0 bg-background">
                                             <Button variant="ghost" size="icon" type="button" onClick={() => remove(index)} disabled={fields.length <= 1}>
                                                 <Trash2 className="h-4 w-4 text-destructive" />
                                             </Button>
                                         </TableCell>
                                     </TableRow>
-                                  )
-                                })}
+                                ))}
                             </TableBody>
                         </Table>
                     </ScrollArea>

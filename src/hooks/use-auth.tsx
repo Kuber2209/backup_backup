@@ -30,64 +30,52 @@ const handleBlacklistedAccess = async (email: string | null) => {
     await signOut(auth);
 };
 
-// Helper function to pause execution, useful for retries
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-/**
- * Fetches the user profile from Firestore. If the user doesn't exist, it creates a new one.
- * Includes a retry mechanism to handle transient network issues on initial load.
- */
-async function fetchUserProfileWithRetry(fbUser: FirebaseUser, retries = 3, delay = 2000): Promise<User | null | 'blacklisted'> {
-    for (let i = 0; i < retries; i++) {
-        try {
-            // Check for blacklisted status on every attempt
-            if (fbUser.email && await isEmailBlacklisted(fbUser.email) && fbUser.email !== ADMIN_EMAIL) {
-                await handleBlacklistedAccess(fbUser.email);
-                return 'blacklisted';
-            }
-
-            let userProfile = await getUserProfile(fbUser.uid);
-
-            if (userProfile) {
-                return userProfile; // User profile found, return it.
-            }
-
-            // --- New User Creation Flow ---
-            if (!fbUser.email) { // Should not happen with providers used
-                await signOut(auth);
-                return null;
-            }
-
-            const isWhitelisted = await isEmailWhitelisted(fbUser.email);
-            const isAdmin = fbUser.email === ADMIN_EMAIL;
-            
-            const newUser: User = {
-                id: fbUser.uid,
-                name: fbUser.displayName || 'New User',
-                email: fbUser.email,
-                role: isAdmin ? 'SPT' : 'Associate',
-                avatar: fbUser.photoURL || `https://i.pravatar.cc/150?u=${fbUser.uid}`,
-                isOnHoliday: false,
-                status: isAdmin || isWhitelisted ? 'active' : 'pending',
-            };
-            
-            await createUserProfile(newUser);
-            return newUser; // Return the newly created user.
-
-        } catch (error: any) {
-            // Only retry on the specific 'unavailable' (offline) error code from Firestore.
-            if (error.code === 'unavailable' && i < retries - 1) {
-                console.warn(`Firestore offline, attempt ${i + 1} of ${retries}. Retrying in ${delay}ms...`);
-                await sleep(delay);
-            } else {
-                // For any other error, or on the final retry attempt, throw the error to be caught by the calling function.
-                console.error("Failed to fetch or create user profile after multiple retries:", error);
-                throw error; 
-            }
-        }
+// This function handles the entire user session logic after Firebase auth state changes.
+const manageUserSession = async (fbUser: FirebaseUser): Promise<{ userProfile: User | null; route?: string }> => {
+    if (fbUser.email && await isEmailBlacklisted(fbUser.email) && fbUser.email !== ADMIN_EMAIL) {
+        await handleBlacklistedAccess(fbUser.email);
+        return { userProfile: null, route: '/access-declined' };
     }
-    return null; // Should be unreachable if retries > 0
-}
+
+    // Attempt to get the existing user profile.
+    let userProfile = await getUserProfile(fbUser.uid);
+
+    // If no profile exists, it's a new user. Create their profile.
+    if (!userProfile) {
+        if (!fbUser.email) { // Should not happen with providers used, but a good safeguard.
+            await signOut(auth);
+            throw new Error("User has no email for profile creation.");
+        }
+
+        const isWhitelisted = await isEmailWhitelisted(fbUser.email);
+        const isAdmin = fbUser.email === ADMIN_EMAIL;
+        
+        const newUser: User = {
+            id: fbUser.uid,
+            name: fbUser.displayName || 'New User',
+            email: fbUser.email,
+            role: isAdmin ? 'SPT' : 'Associate',
+            avatar: fbUser.photoURL || `https://i.pravatar.cc/150?u=${fbUser.uid}`,
+            isOnHoliday: false,
+            status: isAdmin || isWhitelisted ? 'active' : 'pending',
+        };
+        
+        await createUserProfile(newUser);
+        userProfile = newUser;
+    }
+
+    // Determine routing based on user status.
+    if (userProfile.status === 'pending' && userProfile.email !== ADMIN_EMAIL) {
+        return { userProfile, route: '/pending-approval' };
+    }
+    if (userProfile.status === 'declined') {
+        await signOut(auth);
+        return { userProfile: null, route: '/access-declined' };
+    }
+    
+    // For active users, no specific route is needed.
+    return { userProfile };
+};
 
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -104,29 +92,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (fbUser) {
           try {
               setFirebaseUser(fbUser);
-              const userProfile = await fetchUserProfileWithRetry(fbUser);
-              
-              if (userProfile === 'blacklisted') {
-                  router.push('/access-declined');
-              } else if (userProfile) {
-                   if (userProfile.status === 'pending' && userProfile.email !== ADMIN_EMAIL) {
-                      setUser(userProfile);
-                      router.push('/pending-approval');
-                  } else if (userProfile.status === 'declined') {
-                      await signOut(auth);
-                      router.push('/access-declined');
-                  } else {
-                      setUser(userProfile);
-                  }
-              } else {
-                  // This case handles a null return from the retry function, which implies a failure.
-                  await signOut(auth);
-                   setUser(null);
-                   setFirebaseUser(null);
+              const { userProfile, route } = await manageUserSession(fbUser);
+              setUser(userProfile);
+              if (route) {
+                  router.push(route);
               }
           } catch (error: any) {
-              // This block catches the final error thrown by fetchUserProfileWithRetry
-              console.error("onAuthStateChanged: Final error after retries:", error);
+              console.error("onAuthStateChanged Error:", error);
               toast({
                   variant: 'destructive',
                   title: 'Login Failed',

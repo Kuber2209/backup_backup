@@ -34,7 +34,7 @@ const initializeFirebase = async () => {
 
     auth = getAuth(app);
     // Connect to the default Firestore database, not a named one.
-    db = getFirestore(app,'pu-tasker'); 
+    db = getFirestore(app); 
     storage = getStorage(app);
 };
 

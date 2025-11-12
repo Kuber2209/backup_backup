@@ -14,6 +14,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Dialog } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { CreatePitchListForm } from './create-pitch-list-form';
+import { Edit } from 'lucide-react';
 
 function EditableCell({ value, onSave }: { value: string | undefined; onSave: (value: string) => void }) {
     const [localValue, setLocalValue] = useState(value || '');
@@ -48,7 +52,9 @@ function EditableCell({ value, onSave }: { value: string | undefined; onSave: (v
     )
 }
 
-export function MyPitches({ pitchLists, users }: { pitchLists: PitchList[], users: User[] }) {
+export function MyPitches({ pitchLists, users, canManage = false }: { pitchLists: PitchList[], users: User[], canManage?: boolean }) {
+  const [editList, setEditList] = useState<PitchList | null>(null);
+
   if (pitchLists.length === 0) {
     return (
       <div className="text-center text-muted-foreground py-8 border rounded-lg">
@@ -58,31 +64,41 @@ export function MyPitches({ pitchLists, users }: { pitchLists: PitchList[], user
   }
 
   return (
-    <Accordion type="multiple" className="w-full space-y-4">
-      {pitchLists.map(list => {
-        const assignedUser = users.find(u => u.id === list.assignedTo);
-        const creatorUser = users.find(u => u.id === list.createdBy);
-        return (
-            <AccordionItem value={list.id} key={list.id} className="border rounded-lg bg-card">
-                <AccordionTrigger className="p-4 hover:no-underline">
-                    <div className="flex justify-between items-center w-full">
-                        <div className="text-left">
-                            <h4 className="font-semibold text-lg">{list.title}</h4>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                                {creatorUser && <span className="flex items-center gap-1">Created by {creatorUser.name}</span>}
-                                {assignedUser && <span className="flex items-center gap-1">Assigned to {assignedUser.name}</span>}
+    <Dialog onOpenChange={(open) => !open && setEditList(null)}>
+        <Accordion type="multiple" className="w-full space-y-4">
+        {pitchLists.map(list => {
+            const assignedUser = users.find(u => u.id === list.assignedTo);
+            const creatorUser = users.find(u => u.id === list.createdBy);
+            return (
+                <AccordionItem value={list.id} key={list.id} className="border rounded-lg bg-card">
+                    <AccordionTrigger className="p-4 hover:no-underline">
+                        <div className="flex justify-between items-center w-full">
+                            <div className="text-left">
+                                <h4 className="font-semibold text-lg">{list.title}</h4>
+                                <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+                                    {creatorUser && <span className="flex items-center gap-1">Created by {creatorUser.name}</span>}
+                                    {assignedUser && <span className="flex items-center gap-1">Assigned to {assignedUser.name}</span>}
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Badge variant="secondary">{list.status}</Badge>
+                                {canManage && (
+                                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setEditList(list); }}>
+                                        <Edit className="h-4 w-4" />
+                                    </Button>
+                                )}
                             </div>
                         </div>
-                         <Badge variant="secondary">{list.status}</Badge>
-                    </div>
-                </AccordionTrigger>
-                <AccordionContent className="p-4 border-t">
-                    <PitchContactsTable pitchListId={list.id} />
-                </AccordionContent>
-            </AccordionItem>
-        )
-      })}
-    </Accordion>
+                    </AccordionTrigger>
+                    <AccordionContent className="p-4 border-t">
+                        <PitchContactsTable pitchListId={list.id} />
+                    </AccordionContent>
+                </AccordionItem>
+            )
+        })}
+        </Accordion>
+        {editList && <CreatePitchListForm isEdit list={editList} onFormOpenChange={(open) => !open && setEditList(null)} />}
+    </Dialog>
   );
 }
 

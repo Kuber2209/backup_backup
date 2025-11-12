@@ -95,8 +95,8 @@ export function PitchingDashboard() {
                     </AccordionItem>
                      <AccordionItem value="assigned-pitches">
                         <AccordionTrigger className="text-lg font-semibold">Assigned Pitch Lists ({allAssignedPitches.length})</AccordionTrigger>
-                        <AccordionContent>
-                            <MyPitches pitchLists={allAssignedPitches} users={users} />
+                        <AccordionContent className="pt-4">
+                            <MyPitches pitchLists={allAssignedPitches} users={users} canManage={canManage} />
                         </AccordionContent>
                     </AccordionItem>
                 </Accordion>

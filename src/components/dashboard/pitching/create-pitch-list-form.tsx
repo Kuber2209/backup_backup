@@ -13,18 +13,20 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Plus, PlusCircle, Trash2, Sheet } from 'lucide-react';
 import { useAuth } from '@/lib/auth-provider';
 import type { User, PitchList, PitchContact } from '@/lib/types';
-import { createPitchListWithContacts } from '@/services/firestore';
+import { createPitchListWithContacts, getContactsForPitchList, updatePitchListWithContacts } from '@/services/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 
 const pitchContactSchema = z.object({
+  id: z.string().optional(),
   companyName: z.string(),
   hrName: z.string().optional(),
   hrLinkedIn: z.string().optional(),
   contact: z.string().optional(),
   emailId: z.string().optional(),
   remarks: z.string().optional(),
+  status: z.string().optional(),
 });
 
 const pitchListSchema = z.object({
@@ -63,21 +65,46 @@ const EditableCell = ({ value, onSave, fieldName }: { value: string | undefined,
   );
 };
 
+interface CreatePitchListFormProps {
+    isEdit?: boolean;
+    list?: PitchList;
+    onFormOpenChange?: (open: boolean) => void;
+    users?: User[]; // Optional, only needed for create
+}
 
-export function CreatePitchListForm({ users }: { users: User[] }) {
+export function CreatePitchListForm({ isEdit = false, list, onFormOpenChange, users }: CreatePitchListFormProps) {
   const { user: currentUser } = useAuth();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(!isEdit); // Dialog is controlled externally for edit
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [bulkText, setBulkText] = useState('');
   const { toast } = useToast();
   
+  const handleOpenChange = (openState: boolean) => {
+    if (onFormOpenChange) {
+        onFormOpenChange(openState);
+    } else {
+        setOpen(openState);
+    }
+  }
+
   const { register, handleSubmit, control, formState: { errors, isSubmitting }, reset, setValue } = useForm<PitchListFormData>({
     resolver: zodResolver(pitchListSchema),
     defaultValues: {
-      title: '',
-      contacts: [{ companyName: '', hrName: '', hrLinkedIn: '', contact: '', emailId: '', remarks: '' }],
+      title: list?.title || '',
+      contacts: [],
     },
   });
+
+  useEffect(() => {
+    if (isEdit && list) {
+        setValue('title', list.title);
+        getContactsForPitchList(list.id, (fetchedContacts) => {
+            setValue('contacts', fetchedContacts);
+        });
+    } else {
+        reset({ title: '', contacts: [{ companyName: '', hrName: '', hrLinkedIn: '', contact: '', emailId: '', remarks: '' }] });
+    }
+  }, [isEdit, list, setValue, reset]);
   
   const { fields, append, remove, replace } = useFieldArray({
     control,
@@ -117,7 +144,6 @@ export function CreatePitchListForm({ users }: { users: User[] }) {
   const onSubmit = async (data: PitchListFormData) => {
     if (!currentUser) return;
     
-    // Filter out any rows where companyName is empty before submitting
     const validContacts = data.contacts.filter(c => c.companyName && c.companyName.trim() !== '');
 
     if (validContacts.length === 0) {
@@ -129,26 +155,28 @@ export function CreatePitchListForm({ users }: { users: User[] }) {
         return;
     }
     
-    const contactsWithStatus = validContacts.map(c => ({...c, status: 'Pending' as const}));
-
     try {
-      const listData: Omit<PitchList, 'id'> = {
-        title: data.title,
-        createdBy: currentUser.id,
-        createdAt: new Date().toISOString(),
-        status: 'Open',
-      };
-      await createPitchListWithContacts(listData, contactsWithStatus as Omit<PitchContact, 'id'>[]);
-
-      toast({
-        title: 'Pitch List Created!',
-        description: `The list "${data.title}" has been posted.`,
-      });
-      setOpen(false);
+      if (isEdit && list) {
+        const updatedListData: Partial<PitchList> = { title: data.title };
+        await updatePitchListWithContacts(list.id, updatedListData, validContacts);
+        toast({ title: 'Pitch List Updated!' });
+      } else {
+        const contactsWithStatus = validContacts.map(c => ({...c, status: 'Pending' as const}));
+        const listData: Omit<PitchList, 'id'> = {
+          title: data.title,
+          createdBy: currentUser.id,
+          createdAt: new Date().toISOString(),
+          status: 'Open',
+        };
+        await createPitchListWithContacts(listData, contactsWithStatus as Omit<PitchContact, 'id'>[]);
+        toast({ title: 'Pitch List Created!', description: `The list "${data.title}" has been posted.` });
+      }
+      
+      handleOpenChange(false);
       reset({ title: '', contacts: [{ companyName: '', hrName: '', hrLinkedIn: '', contact: '', emailId: '', remarks: '' }] });
     } catch (err) {
       console.error(err);
-      toast({ variant: 'destructive', title: "An Error Occurred", description: "Could not create the pitch list." });
+      toast({ variant: 'destructive', title: "An Error Occurred", description: "Could not save the pitch list." });
     }
   };
 
@@ -156,15 +184,11 @@ export function CreatePitchListForm({ users }: { users: User[] }) {
     setValue(`contacts.${index}.${fieldName}`, value, { shouldDirty: true, shouldTouch: true });
   };
 
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button><Plus className="mr-2 h-4 w-4" /> New Pitch List</Button>
-      </DialogTrigger>
+  const dialogContent = (
       <DialogContent className="max-w-6xl w-full h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="font-headline">Create New Pitch List</DialogTitle>
-          <DialogDescription>Add a title and company contacts. Click a cell to edit its content.</DialogDescription>
+          <DialogTitle className="font-headline">{isEdit ? 'Edit Pitch List' : 'Create New Pitch List'}</DialogTitle>
+          <DialogDescription>{isEdit ? 'Modify the list details below.' : 'Add a title and company contacts. Click a cell to edit its content.'}</DialogDescription>
         </DialogHeader>
         
         {showBulkImport ? (
@@ -242,13 +266,25 @@ export function CreatePitchListForm({ users }: { users: User[] }) {
                     <DialogFooter>
                       <Button type="submit" form="pitch-list-form" disabled={isSubmitting}>
                           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                          Create List
+                          {isEdit ? 'Save Changes' : 'Create List'}
                       </Button>
                     </DialogFooter>
                 </div>
             </form>
         )}
       </DialogContent>
-    </Dialog>
   );
+
+    if (isEdit) {
+        return dialogContent;
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogTrigger asChild>
+            <Button><Plus className="mr-2 h-4 w-4" /> New Pitch List</Button>
+        </DialogTrigger>
+        {dialogContent}
+        </Dialog>
+    );
 }

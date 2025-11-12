@@ -431,6 +431,49 @@ export const createPitchListWithContacts = async (
   return { id: pitchListDocRef.id, ...listData };
 };
 
+export const updatePitchListWithContacts = async (
+  listId: string,
+  listData: Partial<PitchList>,
+  contactsData: (Partial<PitchContact> & { companyName: string })[]
+): Promise<void> => {
+  const batch = writeBatch(db);
+  
+  // 1. Update the main pitch list document
+  const pitchListRef = doc(db, 'pitchLists', listId);
+  batch.update(pitchListRef, listData);
+  
+  const contactsCollectionRef = collection(db, 'pitchLists', listId, 'contacts');
+  
+  // 2. Get existing contacts to compare
+  const existingContactsSnapshot = await getDocs(contactsCollectionRef);
+  const existingContactsMap = new Map(existingContactsSnapshot.docs.map(d => [d.id, d.data() as PitchContact]));
+  
+  const incomingContactIds = new Set(contactsData.map(c => c.id).filter(Boolean));
+
+  // 3. Delete contacts that are no longer in the list
+  for (const [id, contact] of existingContactsMap.entries()) {
+    if (!incomingContactIds.has(id)) {
+      batch.delete(doc(contactsCollectionRef, id));
+    }
+  }
+
+  // 4. Update existing or add new contacts
+  contactsData.forEach(contact => {
+    if (contact.id && existingContactsMap.has(contact.id)) {
+      // Update existing contact
+      const contactRef = doc(contactsCollectionRef, contact.id);
+      batch.update(contactRef, { ...contact });
+    } else {
+      // Add new contact
+      const newContactRef = doc(contactsCollectionRef);
+      batch.set(newContactRef, { ...contact, status: 'Pending' });
+    }
+  });
+
+  await batch.commit();
+};
+
+
 export const getPitchLists = (callback: (lists: PitchList[]) => void): (() => void) => {
   const pitchListsCollection = collection(db, 'pitchLists');
   const q = query(pitchListsCollection, orderBy('createdAt', 'desc'));

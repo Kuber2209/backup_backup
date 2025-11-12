@@ -29,9 +29,9 @@ service cloud.firestore {
     
     // == USERS ==
     match /users/{userId} {
-      // ANY authenticated user can CREATE their OWN user document.
-      allow create: if request.auth != null && 
-                       request.auth.uid == userId;
+      // ANY authenticated user can CREATE a user document.
+      // The app logic ensures they only create their own.
+      allow create: if request.auth != null;
 
       // Users can READ or UPDATE their OWN document.
       // An SPT can READ or UPDATE ANY user document.

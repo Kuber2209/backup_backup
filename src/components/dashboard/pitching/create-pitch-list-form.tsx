@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -70,7 +71,12 @@ export function CreatePitchListForm({ users }: { users: User[] }) {
         emailId: columns[4] || '',
         remarks: columns[5] || '',
       };
-    });
+    }).filter(contact => contact.companyName.trim() !== ''); // Filter out empty rows
+
+    if (newContacts.length === 0) {
+      toast({ variant: 'destructive', title: 'No valid data found', description: 'Make sure at least the Company Name is filled.'});
+      return;
+    }
 
     replace(newContacts);
     toast({ title: `${newContacts.length} contacts imported successfully.` });
@@ -80,6 +86,19 @@ export function CreatePitchListForm({ users }: { users: User[] }) {
 
   const onSubmit = async (data: PitchListFormData) => {
     if (!currentUser) return;
+    
+    // Filter out any rows where companyName is empty before submitting
+    const validContacts = data.contacts.filter(c => c.companyName && c.companyName.trim() !== '');
+
+    if (validContacts.length === 0) {
+        toast({
+            variant: 'destructive',
+            title: 'No Contacts to Save',
+            description: 'Please add at least one contact with a company name.',
+        });
+        return;
+    }
+
     try {
       const listData: Omit<PitchList, 'id'> = {
         title: data.title,
@@ -87,14 +106,14 @@ export function CreatePitchListForm({ users }: { users: User[] }) {
         createdAt: new Date().toISOString(),
         status: 'Open',
       };
-      await createPitchListWithContacts(listData, data.contacts);
+      await createPitchListWithContacts(listData, validContacts);
 
       toast({
         title: 'Pitch List Created!',
         description: `The list "${data.title}" has been posted.`,
       });
       setOpen(false);
-      reset();
+      reset({ title: '', contacts: [{ companyName: '', hrName: '', hrLinkedIn: '', contact: '', emailId: '', remarks: '' }] });
     } catch (err) {
       console.error(err);
       toast({ variant: 'destructive', title: "An Error Occurred", description: "Could not create the pitch list." });
@@ -165,7 +184,7 @@ export function CreatePitchListForm({ users }: { users: User[] }) {
                                         <TableCell><Input {...register(`contacts.${index}.emailId`)} placeholder="Email..."/></TableCell>
                                         <TableCell><Input {...register(`contacts.${index}.remarks`)} placeholder="Notes..."/></TableCell>
                                         <TableCell>
-                                            <Button variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 1}>
+                                            <Button variant="ghost" size="icon" type="button" onClick={() => remove(index)} disabled={fields.length <= 1}>
                                                 <Trash2 className="h-4 w-4 text-destructive" />
                                             </Button>
                                         </TableCell>

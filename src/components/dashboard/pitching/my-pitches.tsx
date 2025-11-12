@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -12,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export function MyPitches({ pitchLists, users }: { pitchLists: PitchList[], users: User[] }) {
   if (pitchLists.length === 0) {
@@ -63,10 +65,17 @@ function PitchContactsTable({ pitchListId }: { pitchListId: string }) {
     return () => unsubscribe();
   }, [pitchListId]);
   
-  const handleUpdate = (contactId: string, field: keyof PitchContact, value: string) => {
+  const handleUpdate = (contactId: string, field: keyof Omit<PitchContact, 'id'>, value: string) => {
+    // Optimistic UI update
     const updatedContacts = contacts.map(c => c.id === contactId ? {...c, [field]: value} : c);
     setContacts(updatedContacts);
-    updatePitchContact(pitchListId, contactId, { [field]: value });
+    
+    // Debounce Firestore write
+    const timer = setTimeout(() => {
+        updatePitchContact(pitchListId, contactId, { [field]: value });
+    }, 500); // 500ms delay
+
+    return () => clearTimeout(timer);
   };
   
   if (loading) {
@@ -74,9 +83,9 @@ function PitchContactsTable({ pitchListId }: { pitchListId: string }) {
   }
 
   return (
-    <div className="w-full overflow-x-auto">
+    <ScrollArea className="w-full h-[400px] border rounded-lg">
         <Table>
-            <TableHeader>
+            <TableHeader className="sticky top-0 bg-muted z-10">
                 <TableRow>
                     <TableHead className="w-[150px]">Company Name</TableHead>
                     <TableHead>HR Name</TableHead>
@@ -98,7 +107,7 @@ function PitchContactsTable({ pitchListId }: { pitchListId: string }) {
                         <TableCell><EditableCell value={contact.remarks} onSave={(val) => handleUpdate(contact.id, 'remarks', val)} /></TableCell>
                         <TableCell>
                             <Select value={contact.status} onValueChange={(val) => handleUpdate(contact.id, 'status', val)}>
-                                <SelectTrigger>
+                                <SelectTrigger className="h-8">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -114,7 +123,7 @@ function PitchContactsTable({ pitchListId }: { pitchListId: string }) {
                 ))}
             </TableBody>
         </Table>
-    </div>
+    </ScrollArea>
   );
 }
 
@@ -127,6 +136,11 @@ function EditableCell({ value, onSave }: { value: string | undefined; onSave: (v
         onSave(localValue);
         setIsEditing(false);
     }
+    
+    // Update local state if the prop value changes from outside
+    useEffect(() => {
+        setLocalValue(value || '');
+    }, [value]);
 
     if (isEditing) {
         return (
@@ -134,7 +148,7 @@ function EditableCell({ value, onSave }: { value: string | undefined; onSave: (v
                 value={localValue}
                 onChange={(e) => setLocalValue(e.target.value)}
                 onBlur={handleSave}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleSave() }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') handleSave() }}
                 autoFocus
                 className="h-8"
             />
@@ -142,8 +156,8 @@ function EditableCell({ value, onSave }: { value: string | undefined; onSave: (v
     }
 
     return (
-        <div onClick={() => setIsEditing(true)} className="min-h-[32px] p-2 cursor-pointer rounded-md hover:bg-muted">
-            {value || <span className="text-muted-foreground text-xs">Click to edit</span>}
+        <div onClick={() => setIsEditing(true)} className="min-h-[32px] p-1.5 cursor-pointer rounded-md hover:bg-muted text-sm">
+            {value || <span className="text-muted-foreground text-xs italic">empty</span>}
         </div>
     )
 }

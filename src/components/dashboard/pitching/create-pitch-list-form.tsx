@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
@@ -41,6 +41,7 @@ const EditableCell = ({ value, onSave }: { value: string | undefined, onSave: (v
   const [localValue, setLocalValue] = useState(value || '');
   const [isOpen, setIsOpen] = useState(false);
 
+  // This effect correctly syncs the local state when the popover opens with the external value.
   useEffect(() => {
     if (isOpen) {
       setLocalValue(value || '');
@@ -54,7 +55,7 @@ const EditableCell = ({ value, onSave }: { value: string | undefined, onSave: (v
   
   return (
     <Popover open={isOpen} onOpenChange={(open) => {
-        if (!open) {
+        if (!open && isOpen) { // Only save on close
             handleSave();
         }
         setIsOpen(open);
@@ -184,7 +185,7 @@ export function CreatePitchListForm({ users }: { users: User[] }) {
   };
 
   const handleCellSave = (index: number, fieldName: keyof z.infer<typeof pitchContactSchema>, value: string) => {
-    setValue(`contacts.${index}.${fieldName}`, value);
+    setValue(`contacts.${index}.${fieldName}`, value, { shouldDirty: true, shouldTouch: true });
   };
 
   return (

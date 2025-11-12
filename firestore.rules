@@ -4,28 +4,28 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
   
-    // Helper function to get the role of the user making the request.
-    // It safely handles cases where the user document might not exist yet.
-    function getUserRole(uid) {
-      return get(/databases/$(database)/documents/users/$(uid)).data.role;
+    // Helper function to safely get the role of the currently authenticated user.
+    // This is the ONLY place a 'get' should be used for roles.
+    function getRequestUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
 
     // == USERS ==
     // This collection stores user profile information.
     match /users/{userId} {
       // ANY authenticated user can CREATE their OWN user document.
-      // This is essential for the signup process to work.
+      // This is the most important rule to fix the signup/login loop.
       allow create: if request.auth != null && request.auth.uid == userId;
 
       // Users can READ or UPDATE their OWN document.
       // An SPT (Super Admin) can READ or UPDATE ANY user document.
       // This allows admins to change user roles from the admin page.
       allow read, update: if request.auth != null && (
-        request.auth.uid == userId || getUserRole(request.auth.uid) == 'SPT'
+        request.auth.uid == userId || getRequestUserRole() == 'SPT'
       );
       
       // Only SPTs can delete users (a destructive action).
-      allow delete: if getUserRole(request.auth.uid) == 'SPT';
+      allow delete: if getRequestUserRole() == 'SPT';
     }
 
     // == TASKS ==
@@ -36,7 +36,7 @@ service cloud.firestore {
 
       // Only JPTs or SPTs can create, update, or delete tasks.
       // Associates can update a task they are assigned to (handled in app logic).
-      allow write: if request.auth != null && getUserRole(request.auth.uid) in ['SPT', 'JPT'];
+      allow write: if request.auth != null && getRequestUserRole() in ['SPT', 'JPT'];
       
       // Subcollection for messages within a task.
       match /messages/{messageId} {
@@ -53,7 +53,7 @@ service cloud.firestore {
       allow read: if request.auth != null;
       
       // Only JPTs or SPTs can create, update, or delete announcements.
-      allow write: if request.auth != null && getUserRole(request.auth.uid) in ['SPT', 'JPT'];
+      allow write: if request.auth != null && getRequestUserRole() in ['SPT', 'JPT'];
     }
     
     // == RESOURCES ==
@@ -63,7 +63,7 @@ service cloud.firestore {
        allow read, update: if request.auth != null;
        
        // Only JPTs or SPTs can create or delete resources.
-       allow create, delete: if request.auth != null && getUserRole(request.auth.uid) in ['SPT', 'JPT'];
+       allow create, delete: if request.auth != null && getRequestUserRole() in ['SPT', 'JPT'];
     }
 
     // == PITCH LISTS ==
@@ -73,7 +73,7 @@ service cloud.firestore {
 
       // Subcollection for contacts within a pitch list.
       match /contacts/{contactId} {
-        // Any authenticated user can read contacts.
+        // Any authenticated user can read and write contacts.
         allow read, write: if request.auth != null;
       }
     }
@@ -81,11 +81,11 @@ service cloud.firestore {
     // == ADMIN-ONLY COLLECTIONS ==
     // Whitelist and Blacklist can only be accessed by SPTs.
     match /whitelist/{email} {
-      allow read, write: if request.auth != null && getUserRole(request.auth.uid) == 'SPT';
+      allow read, write: if request.auth != null && getRequestUserRole() == 'SPT';
     }
     
     match /blacklist/{email} {
-       allow read, write: if request.auth != null && getUserRole(request.auth.uid) == 'SPT';
+       allow read, write: if request.auth != null && getRequestUserRole() == 'SPT';
     }
 
   }

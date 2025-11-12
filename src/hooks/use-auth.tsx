@@ -3,7 +3,7 @@
 
 import React, {createContext, useContext, useState, useEffect, ReactNode} from 'react';
 import {onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup, type User as FirebaseUser} from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth as getFirebaseAuth } from '@/lib/firebase';
 import type { User } from '@/lib/types';
 import { createUserProfile, getUserProfile, isEmailBlacklisted, isEmailWhitelisted } from '@/services/firestore';
 import { toast } from '@/hooks/use-toast';
@@ -26,7 +26,7 @@ const ADMIN_EMAIL = 'f20240819@hyderabad.bits-pilani.ac.in';
 
 const handleBlacklistedAccess = async (email: string | null) => {
     if (!email) return;
-    await signOut(auth());
+    await signOut(getFirebaseAuth());
 };
 
 const manageUserSession = async (fbUser: FirebaseUser): Promise<{ userProfile: User | null; route?: string }> => {
@@ -39,7 +39,7 @@ const manageUserSession = async (fbUser: FirebaseUser): Promise<{ userProfile: U
 
     if (!userProfile) {
         if (!fbUser.email) {
-            await signOut(auth());
+            await signOut(getFirebaseAuth());
             throw new Error("User has no email for profile creation.");
         }
 
@@ -64,7 +64,7 @@ const manageUserSession = async (fbUser: FirebaseUser): Promise<{ userProfile: U
         return { userProfile, route: '/pending-approval' };
     }
     if (userProfile.status === 'declined') {
-        await signOut(auth());
+        await signOut(getFirebaseAuth());
         return { userProfile: null, route: '/access-declined' };
     }
     
@@ -79,7 +79,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth(), async (fbUser) => {
+    // CRITICAL: Only run Firebase code on the client side
+    if (typeof window === 'undefined') {
+      setLoading(false);
+      return;
+    }
+
+    const unsubscribe = onAuthStateChanged(getFirebaseAuth(), async (fbUser) => {
       setLoading(true);
       if (fbUser) {
         try {
@@ -96,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 title: 'Login Failed',
                 description: 'Could not connect to the database. Please check your internet connection and try again.'
             });
-            await signOut(auth());
+            await signOut(getFirebaseAuth());
             setUser(null);
             setFirebaseUser(null);
         } finally {
@@ -115,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      if (await isEmailBlacklisted(email) && email !== ADMIN_EMAIL) {
         throw new Error("This email has been blacklisted.");
     }
-    return signInWithEmailAndPassword(auth(), email, pass);
+    return signInWithEmailAndPassword(getFirebaseAuth(), email, pass);
   };
   
   const signUp = async (email: string, pass:string, name: string) => {
@@ -123,14 +129,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("This email has been blacklisted and cannot be used to sign up.");
     }
 
-    const userCredential = await createUserWithEmailAndPassword(auth(), email, pass);
+    const userCredential = await createUserWithEmailAndPassword(getFirebaseAuth(), email, pass);
     // onAuthStateChanged listener will handle profile creation.
   };
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     try {
-        const result = await signInWithPopup(auth(), provider);
+        const result = await signInWithPopup(getFirebaseAuth(), provider);
         const email = result.user.email;
         if (email && await isEmailBlacklisted(email) && email !== ADMIN_EMAIL) {
             await handleBlacklistedAccess(email);
@@ -145,7 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logOut = async () => {
-    await signOut(auth());
+    await signOut(getFirebaseAuth());
     setUser(null);
     setFirebaseUser(null);
   };

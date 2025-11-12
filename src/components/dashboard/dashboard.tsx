@@ -1,9 +1,8 @@
 
-
 'use client';
 
 import { useEffect } from 'react';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/lib/auth-provider';
 import { Header } from '@/components/dashboard/header';
 import { JptDashboard } from '@/components/dashboard/jpt-dashboard';
 import { AssociateDashboard } from '@/components/dashboard/associate-dashboard';

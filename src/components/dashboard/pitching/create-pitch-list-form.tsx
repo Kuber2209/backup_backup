@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -19,54 +19,20 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 
 const pitchContactSchema = z.object({
-  companyName: z.string().min(1, 'Company Name is required.'),
+  companyName: z.string(),
   hrName: z.string().optional(),
   hrLinkedIn: z.string().optional(),
   contact: z.string().optional(),
-  emailId: z.string().email('Invalid email format.').optional().or(z.literal('')),
+  emailId: z.string().email('Invalid email.').optional().or(z.literal('')),
   remarks: z.string().optional(),
 });
 
-// A less strict schema for the main form to allow submission with only company name
 const pitchListSchema = z.object({
   title: z.string().min(1, 'Title is required.'),
-  contacts: z.array(pitchContactSchema.partial().extend({ companyName: z.string() })),
+  contacts: z.array(pitchContactSchema),
 });
 
 type PitchListFormData = z.infer<typeof pitchListSchema>;
-
-function EditableCell({ value, onSave }: { value: string | undefined; onSave: (value: string) => void }) {
-    const [localValue, setLocalValue] = useState(value || '');
-    const [isEditing, setIsEditing] = useState(false);
-
-    const handleSave = () => {
-        onSave(localValue);
-        setIsEditing(false);
-    }
-    
-    useEffect(() => {
-        setLocalValue(value || '');
-    }, [value]);
-
-    if (isEditing) {
-        return (
-            <Input 
-                value={localValue}
-                onChange={(e) => setLocalValue(e.target.value)}
-                onBlur={handleSave}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); handleSave(); } }}
-                autoFocus
-                className="h-8"
-            />
-        )
-    }
-
-    return (
-        <div onClick={() => setIsEditing(true)} className="min-h-[32px] w-full p-1.5 cursor-pointer rounded-md hover:bg-muted text-sm">
-            {value || <span className="text-muted-foreground text-xs italic">empty</span>}
-        </div>
-    )
-}
 
 export function CreatePitchListForm({ users }: { users: User[] }) {
   const { user: currentUser } = useAuth();
@@ -75,7 +41,7 @@ export function CreatePitchListForm({ users }: { users: User[] }) {
   const [bulkText, setBulkText] = useState('');
   const { toast } = useToast();
   
-  const { register, handleSubmit, control, formState: { errors, isSubmitting }, reset, setValue, trigger } = useForm<PitchListFormData>({
+  const { register, handleSubmit, control, formState: { errors, isSubmitting }, reset, setValue } = useForm<PitchListFormData>({
     resolver: zodResolver(pitchListSchema),
     defaultValues: {
       title: '',
@@ -142,7 +108,6 @@ export function CreatePitchListForm({ users }: { users: User[] }) {
         createdAt: new Date().toISOString(),
         status: 'Open',
       };
-      // Note: The service function `createPitchListWithContacts` expects the correct full type
       await createPitchListWithContacts(listData, contactsWithStatus as Omit<PitchContact, 'id'>[]);
 
       toast({
@@ -215,29 +180,25 @@ export function CreatePitchListForm({ users }: { users: User[] }) {
                                 {fields.map((field, index) => (
                                     <TableRow key={field.id}>
                                         <TableCell>
-                                            <EditableCell 
-                                                value={field.companyName} 
-                                                onSave={(value) => {
-                                                    setValue(`contacts.${index}.companyName`, value);
-                                                    trigger(`contacts.${index}.companyName`);
-                                                }}
-                                            />
+                                            <Input {...register(`contacts.${index}.companyName`)} placeholder="Company..." className="h-8" />
                                             {errors.contacts?.[index]?.companyName && <p className="text-xs text-destructive mt-1">{errors.contacts?.[index]?.companyName?.message}</p>}
                                         </TableCell>
-                                        <TableCell><EditableCell value={field.hrName} onSave={(val) => setValue(`contacts.${index}.hrName`, val)} /></TableCell>
-                                        <TableCell><EditableCell value={field.hrLinkedIn} onSave={(val) => setValue(`contacts.${index}.hrLinkedIn`, val)} /></TableCell>
-                                        <TableCell><EditableCell value={field.contact} onSave={(val) => setValue(`contacts.${index}.contact`, val)} /></TableCell>
                                         <TableCell>
-                                            <EditableCell 
-                                                value={field.emailId} 
-                                                onSave={(value) => {
-                                                    setValue(`contacts.${index}.emailId`, value);
-                                                    trigger(`contacts.${index}.emailId`);
-                                                }} 
-                                            />
+                                            <Input {...register(`contacts.${index}.hrName`)} placeholder="HR Name..." className="h-8" />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Input {...register(`contacts.${index}.hrLinkedIn`)} placeholder="LinkedIn URL..." className="h-8" />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Input {...register(`contacts.${index}.contact`)} placeholder="Phone..." className="h-8" />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Input {...register(`contacts.${index}.emailId`)} placeholder="Email..." className="h-8" />
                                             {errors.contacts?.[index]?.emailId && <p className="text-xs text-destructive mt-1">{errors.contacts?.[index]?.emailId?.message}</p>}
                                         </TableCell>
-                                        <TableCell><EditableCell value={field.remarks} onSave={(val) => setValue(`contacts.${index}.remarks`, val)} /></TableCell>
+                                        <TableCell>
+                                            <Input {...register(`contacts.${index}.remarks`)} placeholder="Remarks..." className="h-8" />
+                                        </TableCell>
                                         <TableCell>
                                             <Button variant="ghost" size="icon" type="button" onClick={() => remove(index)} disabled={fields.length <= 1}>
                                                 <Trash2 className="h-4 w-4 text-destructive" />
@@ -248,7 +209,6 @@ export function CreatePitchListForm({ users }: { users: User[] }) {
                             </TableBody>
                         </Table>
                     </ScrollArea>
-                    {errors.contacts?.root && <p className="p-4 text-sm text-destructive">{errors.contacts.root.message}</p>}
                 </div>
                 <div className="flex justify-start gap-2 mt-4">
                     <Button type="button" variant="outline" onClick={() => append({ companyName: '', hrName: '', hrLinkedIn: '', contact: '', emailId: '', remarks: '' })}>

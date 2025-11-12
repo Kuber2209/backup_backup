@@ -6,7 +6,7 @@ import React, { useState, useEffect, ReactNode } from 'react';
 import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup, type User as FirebaseUser } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import type { User } from '@/lib/types';
-import { createUserProfile, getUserProfile, isEmailBlacklisted, isEmailWhitelisted } from '@/services/firestore';
+import { createUserProfile, getUserProfile, isEmailBlacklisted } from '@/services/firestore';
 import { toast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -42,8 +42,7 @@ const manageUserSession = async (fbUser: FirebaseUser): Promise<{ userProfile: U
             await signOut(auth);
             throw new Error("User has no email for profile creation.");
         }
-
-        const isWhitelisted = await isEmailWhitelisted(fbUser.email);
+        
         const isAdmin = fbUser.email === ADMIN_EMAIL;
         
         const newUser: User = {
@@ -53,10 +52,10 @@ const manageUserSession = async (fbUser: FirebaseUser): Promise<{ userProfile: U
             role: isAdmin ? 'SPT' : 'Associate',
             avatar: fbUser.photoURL || `https://i.pravatar.cc/150?u=${fbUser.uid}`,
             isOnHoliday: false,
-            status: isAdmin || isWhitelisted ? 'active' : 'pending',
+            // Admin is active by default, everyone else must be approved.
+            status: isAdmin ? 'active' : 'pending',
         };
         
-        // This function now handles its own errors
         createUserProfile(newUser);
         userProfile = newUser;
     }

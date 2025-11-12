@@ -2,12 +2,12 @@
 rules_version = '2';
 
 service cloud.firestore {
-  match /databases/{database}/documents {
+  match /databases/pu-tasker/documents {
   
     // Helper function to safely get the role of the currently authenticated user.
     // This is the ONLY place a 'get' should be used for roles.
     function getRequestUserRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      return get(/databases/pu-tasker/documents/users/$(request.auth.uid)).data.role;
     }
 
     // == USERS ==

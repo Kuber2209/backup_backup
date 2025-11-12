@@ -27,9 +27,10 @@ const pitchContactSchema = z.object({
   remarks: z.string().optional(),
 });
 
+// A less strict schema for the main form to allow submission with only company name
 const pitchListSchema = z.object({
-  title: z.string().min(3, 'Title must be at least 3 characters long.'),
-  contacts: z.array(pitchContactSchema).min(1, 'You must add at least one contact.'),
+  title: z.string().min(1, 'Title is required.'),
+  contacts: z.array(pitchContactSchema.partial().extend({ companyName: z.string() })),
 });
 
 type PitchListFormData = z.infer<typeof pitchListSchema>;
@@ -131,6 +132,8 @@ export function CreatePitchListForm({ users }: { users: User[] }) {
         });
         return;
     }
+    
+    const contactsWithStatus = validContacts.map(c => ({...c, status: 'Pending' as const}));
 
     try {
       const listData: Omit<PitchList, 'id'> = {
@@ -139,7 +142,8 @@ export function CreatePitchListForm({ users }: { users: User[] }) {
         createdAt: new Date().toISOString(),
         status: 'Open',
       };
-      await createPitchListWithContacts(listData, validContacts);
+      // Note: The service function `createPitchListWithContacts` expects the correct full type
+      await createPitchListWithContacts(listData, contactsWithStatus as Omit<PitchContact, 'id'>[]);
 
       toast({
         title: 'Pitch List Created!',

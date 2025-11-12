@@ -4,7 +4,7 @@
 
 import React, {createContext, useContext, useState, useEffect, ReactNode} from 'react';
 import {onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup, type User as FirebaseUser} from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, firebaseInitialization } from '@/lib/firebase';
 import type { User, UserRole } from '@/lib/types';
 import { createUserProfile, getUserProfile, isEmailBlacklisted, isEmailWhitelisted } from '@/services/firestore';
 import { toast } from '@/hooks/use-toast';
@@ -97,53 +97,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
-      setLoading(true);
-      if (fbUser) {
-        try {
-            setFirebaseUser(fbUser);
-            const userProfile = await fetchUserProfileWithRetry(fbUser);
-            
-            if (userProfile === 'blacklisted') {
-                router.push('/access-declined');
-            } else if (userProfile) {
-                 if (userProfile.status === 'pending' && userProfile.email !== ADMIN_EMAIL) {
-                    setUser(userProfile);
-                    router.push('/pending-approval');
-                } else if (userProfile.status === 'declined') {
-                    await signOut(auth);
-                    router.push('/access-declined');
-                } else {
-                    setUser(userProfile);
-                }
-            } else {
-                // This case handles a null return from the retry function, which implies a failure.
-                await signOut(auth);
-                 setUser(null);
-                 setFirebaseUser(null);
-            }
-        } catch (error: any) {
-            // This block catches the final error thrown by fetchUserProfileWithRetry
-            console.error("onAuthStateChanged: Final error after retries:", error);
-            toast({
-                variant: 'destructive',
-                title: 'Login Failed',
-                description: 'Could not connect to the database. Please check your internet connection and try again.'
-            });
-            await signOut(auth);
-            setUser(null);
-            setFirebaseUser(null);
-        } finally {
-            setLoading(false);
+    const initAuth = async () => {
+      await firebaseInitialization; // Wait for firebase to be initialized
+      const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+        setLoading(true);
+        if (fbUser) {
+          try {
+              setFirebaseUser(fbUser);
+              const userProfile = await fetchUserProfileWithRetry(fbUser);
+              
+              if (userProfile === 'blacklisted') {
+                  router.push('/access-declined');
+              } else if (userProfile) {
+                   if (userProfile.status === 'pending' && userProfile.email !== ADMIN_EMAIL) {
+                      setUser(userProfile);
+                      router.push('/pending-approval');
+                  } else if (userProfile.status === 'declined') {
+                      await signOut(auth);
+                      router.push('/access-declined');
+                  } else {
+                      setUser(userProfile);
+                  }
+              } else {
+                  // This case handles a null return from the retry function, which implies a failure.
+                  await signOut(auth);
+                   setUser(null);
+                   setFirebaseUser(null);
+              }
+          } catch (error: any) {
+              // This block catches the final error thrown by fetchUserProfileWithRetry
+              console.error("onAuthStateChanged: Final error after retries:", error);
+              toast({
+                  variant: 'destructive',
+                  title: 'Login Failed',
+                  description: 'Could not connect to the database. Please check your internet connection and try again.'
+              });
+              await signOut(auth);
+              setUser(null);
+              setFirebaseUser(null);
+          } finally {
+              setLoading(false);
+          }
+        } else {
+          setFirebaseUser(null);
+          setUser(null);
+          setLoading(false);
         }
-      } else {
-        setFirebaseUser(null);
-        setUser(null);
-        setLoading(false);
-      }
+      });
+      return unsubscribe;
+    };
+    
+    let unsubscribe: (() => void) | undefined;
+    initAuth().then(unsub => {
+        if(unsub) unsubscribe = unsub;
     });
 
-    return () => unsubscribe();
+    return () => {
+        if(unsubscribe) unsubscribe();
+    }
   }, [router]);
 
   const logIn = async (email: string, pass: string) => {

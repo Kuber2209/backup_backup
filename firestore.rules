@@ -19,7 +19,7 @@ service cloud.firestore {
     function isJPT() {
       return getRole() == 'JPT';
     }
-
+    
     // == USERS ==
     // This collection stores user profile information.
     match /users/{userId} {

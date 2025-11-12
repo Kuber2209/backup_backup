@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import type { User, Task } from '@/lib/types';
 import { CreateTaskForm } from './create-task-form';
 import { TaskList } from './task-list';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/lib/auth-provider';
 import { getTasksCreatedByUser, getUsers } from '@/services/firestore';
 import { Skeleton } from '../ui/skeleton';
 

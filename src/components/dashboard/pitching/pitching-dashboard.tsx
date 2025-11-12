@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import type { PitchList, User } from '@/lib/types';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/lib/auth-provider';
 import { getPitchLists, getUsers } from '@/services/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CreatePitchListForm } from './create-pitch-list-form';

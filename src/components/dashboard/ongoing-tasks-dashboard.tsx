@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { User, Task } from '@/lib/types';
 import { TaskList } from './task-list';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/lib/auth-provider';
 import { getOngoingTasks, getUsers } from '@/services/firestore';
 import { Skeleton } from '../ui/skeleton';
 import { Input } from '../ui/input';

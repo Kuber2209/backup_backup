@@ -8,7 +8,7 @@ import { TaskList } from './task-list';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardContent } from '@/components/ui/card';
 import { CheckCircle2, CircleDotDashed } from 'lucide-react';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/lib/auth-provider';
 import { getTasksAssignedToUser, getUsers, updateTask } from '@/services/firestore';
 import { Skeleton } from '../ui/skeleton';
 

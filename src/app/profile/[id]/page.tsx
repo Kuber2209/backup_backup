@@ -13,7 +13,7 @@ import { ArrowLeft, CheckCircle, Clock, Upload, Camera, ShieldAlert, Sun, Moon }
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/lib/auth-provider';
 import { getUserProfile, getTasksAssignedToUser, updateUserProfile } from '@/services/firestore';
 import { uploadFile } from '@/services/storage';
 import { useToast } from '@/hooks/use-toast';

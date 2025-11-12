@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { LogOut, Shield } from 'lucide-react';
 import Link from 'next/link';
 import { ThemeToggle } from '../theme-toggle';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/lib/auth-provider';
 import { useRouter, usePathname } from 'next/navigation';
 
 function TieIcon(props: React.SVGProps<SVGSVGElement>) {

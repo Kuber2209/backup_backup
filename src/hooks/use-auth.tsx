@@ -1,15 +1,16 @@
 
 'use client';
 
-import React, {createContext, useContext, useState, useEffect, ReactNode} from 'react';
-import {onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup, type User as FirebaseUser} from 'firebase/auth';
-import { auth as getFirebaseAuth } from '@/lib/firebase';
+import React, { useState, useEffect, ReactNode } from 'react';
+import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup, type User as FirebaseUser } from 'firebase/auth';
+import { auth, db } from '@/lib/firebase';
 import type { User } from '@/lib/types';
 import { createUserProfile, getUserProfile, isEmailBlacklisted, isEmailWhitelisted } from '@/services/firestore';
 import { toast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
-interface AuthContextType {
+export interface AuthContextType {
   user: User | null;
   setUser: React.Dispatch<React.SetStateAction<User | null>>;
   firebaseUser: FirebaseUser | null;
@@ -20,13 +21,11 @@ interface AuthContextType {
   logOut: () => Promise<any>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
 const ADMIN_EMAIL = 'f20240819@hyderabad.bits-pilani.ac.in';
 
 const handleBlacklistedAccess = async (email: string | null) => {
     if (!email) return;
-    await signOut(getFirebaseAuth());
+    await signOut(auth);
 };
 
 const manageUserSession = async (fbUser: FirebaseUser): Promise<{ userProfile: User | null; route?: string }> => {
@@ -39,7 +38,7 @@ const manageUserSession = async (fbUser: FirebaseUser): Promise<{ userProfile: U
 
     if (!userProfile) {
         if (!fbUser.email) {
-            await signOut(getFirebaseAuth());
+            await signOut(auth);
             throw new Error("User has no email for profile creation.");
         }
 
@@ -64,7 +63,7 @@ const manageUserSession = async (fbUser: FirebaseUser): Promise<{ userProfile: U
         return { userProfile, route: '/pending-approval' };
     }
     if (userProfile.status === 'declined') {
-        await signOut(getFirebaseAuth());
+        await signOut(auth);
         return { userProfile: null, route: '/access-declined' };
     }
     
@@ -72,7 +71,7 @@ const manageUserSession = async (fbUser: FirebaseUser): Promise<{ userProfile: U
 };
 
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function useFirebaseAuth(): AuthContextType {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -85,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(getFirebaseAuth(), async (fbUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setLoading(true);
       if (fbUser) {
         try {
@@ -102,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 title: 'Login Failed',
                 description: 'Could not connect to the database. Please check your internet connection and try again.'
             });
-            await signOut(getFirebaseAuth());
+            await signOut(auth);
             setUser(null);
             setFirebaseUser(null);
         } finally {
@@ -121,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      if (await isEmailBlacklisted(email) && email !== ADMIN_EMAIL) {
         throw new Error("This email has been blacklisted.");
     }
-    return signInWithEmailAndPassword(getFirebaseAuth(), email, pass);
+    return signInWithEmailAndPassword(auth, email, pass);
   };
   
   const signUp = async (email: string, pass:string, name: string) => {
@@ -129,14 +128,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("This email has been blacklisted and cannot be used to sign up.");
     }
 
-    const userCredential = await createUserWithEmailAndPassword(getFirebaseAuth(), email, pass);
+    const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
     // onAuthStateChanged listener will handle profile creation.
   };
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     try {
-        const result = await signInWithPopup(getFirebaseAuth(), provider);
+        const result = await signInWithPopup(auth, provider);
         const email = result.user.email;
         if (email && await isEmailBlacklisted(email) && email !== ADMIN_EMAIL) {
             await handleBlacklistedAccess(email);
@@ -151,13 +150,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logOut = async () => {
-    await signOut(getFirebaseAuth());
+    await signOut(auth);
     setUser(null);
     setFirebaseUser(null);
   };
 
-
-  const value = {
+  return {
     user,
     setUser,
     firebaseUser,
@@ -167,14 +165,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signInWithGoogle,
     logOut,
   };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider, which is nested inside FirebaseClientProvider.');
-  }
-  return context;
 }

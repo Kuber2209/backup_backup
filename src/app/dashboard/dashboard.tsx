@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/lib/auth-provider';
 import { Header } from '@/components/dashboard/header';
 import { JptDashboard } from '@/components/dashboard/jpt-dashboard';
 import { AssociateDashboard } from '@/components/dashboard/associate-dashboard';
@@ -15,7 +15,7 @@ import { Resources } from '@/components/dashboard/resources';
 import { PitchingDashboard } from '@/components/dashboard/pitching/pitching-dashboard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getMessaging, getToken } from 'firebase/messaging';
-import { app as getApp } from '@/lib/firebase';
+import { app } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { updateUserProfile } from '@/services/firestore';
 import { arrayUnion } from 'firebase/firestore';
@@ -54,7 +54,7 @@ export function Dashboard() {
     const setupFcmToken = async () => {
         if (!currentUser) return;
         try {
-            const messaging = getMessaging(getApp());
+            const messaging = getMessaging(app);
             const currentToken = await getToken(messaging, { vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY });
             
             if (currentToken) {

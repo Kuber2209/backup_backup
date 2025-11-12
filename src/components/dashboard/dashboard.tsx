@@ -13,6 +13,7 @@ import { Announcements } from '@/components/dashboard/announcements';
 import { OngoingTasksDashboard } from '@/components/dashboard/ongoing-tasks-dashboard';
 import { CalendarView } from '@/components/dashboard/calendar-view';
 import { Resources } from '@/components/dashboard/resources';
+import { PitchingDashboard } from '@/components/dashboard/pitching/pitching-dashboard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getMessaging, getToken } from 'firebase/messaging';
 import { app } from '@/lib/firebase';
@@ -98,12 +99,13 @@ export function Dashboard() {
       <Header />
       <main className="flex flex-1 flex-col">
         <Tabs defaultValue={defaultTab} className="w-full flex flex-col" key={tabsKey}>
-           <div className='px-4 md:px-8 bg-header border-b border-border'>
+           <div className='px-4 md:px-8 bg-card border-b border-border'>
              <div className="max-w-7xl mx-auto">
-                <TabsList className="flex flex-wrap h-auto">
+                <TabsList className="flex flex-wrap h-auto justify-start overflow-x-auto">
                     <TabsTrigger value="announcements">Announcements</TabsTrigger>
                     <TabsTrigger value="resources">Resources</TabsTrigger>
                     <TabsTrigger value="calendar">Calendar</TabsTrigger>
+                    <TabsTrigger value="pitching">Pitching</TabsTrigger>
                     
                     {(isJPT || isSPT) && <TabsTrigger value="posted-tasks">My Posted Tasks</TabsTrigger>}
                     
@@ -128,6 +130,9 @@ export function Dashboard() {
                 </TabsContent>
                 <TabsContent value="calendar">
                   <CalendarView />
+                </TabsContent>
+                <TabsContent value="pitching">
+                  <PitchingDashboard />
                 </TabsContent>
                 
                 {(isJPT || isSPT) && (

@@ -15,7 +15,7 @@ function initializeFirebase() {
     if (getApps().length) {
         app = getApp();
         auth = getAuth(app);
-        db = getFirestore(app, 'pu-tasker'); 
+        db = getFirestore(app); 
         storage = getStorage(app);
     } else {
         // This should not happen in the browser, as FirebaseClientProvider handles it.

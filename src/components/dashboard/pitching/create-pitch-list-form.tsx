@@ -36,7 +36,6 @@ type PitchListFormData = z.infer<typeof pitchListSchema>;
 
 const EditableCell = ({ value, onSave, fieldName }: { value: string | undefined, onSave: (value: string) => void, fieldName: string }) => {
   const [localValue, setLocalValue] = useState(value || '');
-  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     setLocalValue(value || '');
@@ -44,11 +43,9 @@ const EditableCell = ({ value, onSave, fieldName }: { value: string | undefined,
 
   const handleSave = () => {
     onSave(localValue);
-    setIsEditing(false);
   };
 
-  if (isEditing) {
-    return (
+  return (
       <Input
         value={localValue}
         onChange={(e) => setLocalValue(e.target.value)}
@@ -59,21 +56,10 @@ const EditableCell = ({ value, onSave, fieldName }: { value: string | undefined,
             handleSave();
           }
         }}
-        autoFocus
         className="h-8"
         aria-label={`Edit ${fieldName}`}
+        placeholder={fieldName}
       />
-    );
-  }
-
-  return (
-    <div
-      onClick={() => setIsEditing(true)}
-      className="min-h-[32px] w-full p-1.5 cursor-pointer rounded-md hover:bg-muted/50 text-sm truncate"
-      title={value || "Click to edit"}
-    >
-      {value || <span className="text-muted-foreground italic">empty</span>}
-    </div>
   );
 };
 

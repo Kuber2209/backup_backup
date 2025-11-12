@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useEffect } from 'react';
@@ -13,6 +11,7 @@ import { Announcements } from '@/components/dashboard/announcements';
 import { OngoingTasksDashboard } from '@/components/dashboard/ongoing-tasks-dashboard';
 import { CalendarView } from '@/components/dashboard/calendar-view';
 import { Resources } from '@/components/dashboard/resources';
+import { PitchingDashboard } from '@/components/dashboard/pitching/pitching-dashboard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getMessaging, getToken } from 'firebase/messaging';
 import { app } from '@/lib/firebase';
@@ -104,6 +103,7 @@ export function Dashboard() {
                     <TabsTrigger value="announcements">Announcements</TabsTrigger>
                     <TabsTrigger value="resources">Resources</TabsTrigger>
                     <TabsTrigger value="calendar">Calendar</TabsTrigger>
+                    <TabsTrigger value="pitching">Pitching</TabsTrigger>
                     
                     {(isJPT || isSPT) && <TabsTrigger value="posted-tasks">My Posted Tasks</TabsTrigger>}
                     
@@ -128,6 +128,9 @@ export function Dashboard() {
                 </TabsContent>
                 <TabsContent value="calendar">
                   <CalendarView />
+                </TabsContent>
+                <TabsContent value="pitching">
+                  <PitchingDashboard />
                 </TabsContent>
                 
                 {(isJPT || isSPT) && (

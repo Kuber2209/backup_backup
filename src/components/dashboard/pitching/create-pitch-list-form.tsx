@@ -1,0 +1,146 @@
+'use client';
+
+import { useState } from 'react';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2, Plus, PlusCircle, Trash2, Sheet } from 'lucide-react';
+import { useAuth } from '@/hooks/use-auth';
+import type { User, PitchList, PitchContact } from '@/lib/types';
+import { createPitchListWithContacts } from '@/services/firestore';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
+const pitchContactSchema = z.object({
+  companyName: z.string().min(1, 'Company Name is required.'),
+  hrName: z.string().optional(),
+  hrLinkedIn: z.string().optional(),
+  contact: z.string().optional(),
+  emailId: z.string().email('Invalid email format.').optional().or(z.literal('')),
+  remarks: z.string().optional(),
+});
+
+const pitchListSchema = z.object({
+  title: z.string().min(3, 'Title must be at least 3 characters long.'),
+  contacts: z.array(pitchContactSchema).min(1, 'You must add at least one contact.'),
+});
+
+type PitchListFormData = z.infer<typeof pitchListSchema>;
+
+export function CreatePitchListForm({ users }: { users: User[] }) {
+  const { user: currentUser } = useAuth();
+  const [open, setOpen] = useState(false);
+  const { toast } = useToast();
+  
+  const { register, handleSubmit, control, formState: { errors, isSubmitting }, reset } = useForm<PitchListFormData>({
+    resolver: zodResolver(pitchListSchema),
+    defaultValues: {
+      title: '',
+      contacts: [{ companyName: '', hrName: '', hrLinkedIn: '', contact: '', emailId: '', remarks: '' }],
+    },
+  });
+  
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: 'contacts',
+  });
+
+  const onSubmit = async (data: PitchListFormData) => {
+    if (!currentUser) return;
+    try {
+      const listData: Omit<PitchList, 'id'> = {
+        title: data.title,
+        createdBy: currentUser.id,
+        createdAt: new Date().toISOString(),
+        status: 'Open',
+      };
+      await createPitchListWithContacts(listData, data.contacts);
+
+      toast({
+        title: 'Pitch List Created!',
+        description: `The list "${data.title}" has been posted.`,
+      });
+      setOpen(false);
+      reset();
+    } catch (err) {
+      console.error(err);
+      toast({ variant: 'destructive', title: "An Error Occurred", description: "Could not create the pitch list." });
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button><Plus className="mr-2 h-4 w-4" /> New Pitch List</Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="font-headline">Create New Pitch List</DialogTitle>
+          <DialogDescription>Add a title and one or more company contacts to this list.</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit(onSubmit)} id="pitch-list-form" className="flex-1 flex flex-col overflow-hidden">
+            <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                    <Label htmlFor="title">List Title</Label>
+                    <Input id="title" {...register('title')} />
+                    {errors.title && <p className="text-sm text-destructive">{errors.title.message}</p>}
+                </div>
+            </div>
+            
+            <Label>Company Contacts</Label>
+            <div className="mt-2 border rounded-lg overflow-hidden flex-1 flex flex-col">
+                <ScrollArea className="flex-1">
+                    <Table>
+                        <TableHeader className="sticky top-0 bg-muted/50 z-10">
+                            <TableRow>
+                                <TableHead className="w-[200px]">Company Name</TableHead>
+                                <TableHead>HR Name</TableHead>
+                                <TableHead>HR LinkedIn</TableHead>
+                                <TableHead>Contact</TableHead>
+                                <TableHead>Email ID</TableHead>
+                                <TableHead>Remarks</TableHead>
+                                <TableHead className="w-[50px]"></TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {fields.map((field, index) => (
+                                <TableRow key={field.id}>
+                                    <TableCell><Input {...register(`contacts.${index}.companyName`)} placeholder="Company Name..." /></TableCell>
+                                    <TableCell><Input {...register(`contacts.${index}.hrName`)} placeholder="Name..."/></TableCell>
+                                    <TableCell><Input {...register(`contacts.${index}.hrLinkedIn`)} placeholder="URL..."/></TableCell>
+                                    <TableCell><Input {...register(`contacts.${index}.contact`)} placeholder="Phone..."/></TableCell>
+                                    <TableCell><Input {...register(`contacts.${index}.emailId`)} placeholder="Email..."/></TableCell>
+                                    <TableCell><Input {...register(`contacts.${index}.remarks`)} placeholder="Notes..."/></TableCell>
+                                    <TableCell>
+                                        <Button variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 1}>
+                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </ScrollArea>
+                {errors.contacts?.root && <p className="p-4 text-sm text-destructive">{errors.contacts.root.message}</p>}
+            </div>
+             <div className="flex justify-start gap-2 mt-4">
+                <Button type="button" variant="outline" onClick={() => append({ companyName: '', hrName: '', hrLinkedIn: '', contact: '', emailId: '', remarks: '' })}>
+                    <PlusCircle className="mr-2 h-4 w-4" /> Add Row
+                </Button>
+            </div>
+        </form>
+        <DialogFooter>
+          <Button type="submit" form="pitch-list-form" disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Create List
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

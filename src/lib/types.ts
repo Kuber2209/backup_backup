@@ -1,5 +1,3 @@
-
-
 export type UserRole = 'SPT' | 'JPT' | 'Associate';
 export type AssignableRole = 'JPT' | 'Associate';
 export type AnnouncementAudience = 'all' | 'jpt-only';
@@ -100,4 +98,24 @@ export interface Task {
   documents?: Document[];
   isAnonymous?: boolean;
   voiceNoteUrl?: string;
+}
+
+export interface PitchContact {
+    id: string;
+    companyName: string;
+    hrName?: string;
+    hrLinkedIn?: string;
+    contact?: string;
+    emailId?: string;
+    remarks?: string;
+    status: 'Pending' | 'Pitched' | 'Follow-up' | 'Converted' | 'Declined';
+}
+
+export interface PitchList {
+    id: string;
+    title: string;
+    createdBy: string; // JPT or SPT user ID
+    createdAt: string; // ISO string
+    assignedTo?: string; // Associate user ID
+    status: 'Open' | 'Assigned';
 }

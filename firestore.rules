@@ -66,6 +66,32 @@ service cloud.firestore {
        allow create, delete: if request.auth != null && getUserRole(request.auth.uid) in ['SPT', 'JPT'];
     }
 
+    // == PITCH LISTS ==
+    match /pitchLists/{pitchListId} {
+      // Any authenticated user can read the lists of pitches.
+      allow read: if request.auth != null;
+
+      // Only JPTs or SPTs can create or delete pitch lists.
+      allow create, delete: if request.auth != null && getUserRole(request.auth.uid) in ['SPT', 'JPT'];
+
+      // Only the assigned associate or an admin can update the list (e.g., to accept it).
+      allow update: if request.auth != null && 
+        (resource.data.assignedTo == request.auth.uid || getUserRole(request.auth.uid) in ['SPT', 'JPT']);
+      
+      // Subcollection for contacts within a pitch list.
+      match /contacts/{contactId} {
+        // Any authenticated user can read contacts.
+        allow read: if request.auth != null;
+        
+        // JPT/SPT who created it or the assigned Assoc can write/update contacts.
+        allow write: if request.auth != null && (
+            get(/databases/$(database)/documents/pitchLists/$(pitchListId)).data.createdBy == request.auth.uid ||
+            get(/databases/$(database)/documents/pitchLists/$(pitchListId)).data.assignedTo == request.auth.uid ||
+            getUserRole(request.auth.uid) in ['SPT', 'JPT']
+        );
+      }
+    }
+
     // == ADMIN-ONLY COLLECTIONS ==
     // Whitelist and Blacklist can only be accessed by SPTs.
     match /whitelist/{email} {

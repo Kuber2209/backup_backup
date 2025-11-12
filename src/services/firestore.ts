@@ -1,7 +1,5 @@
-
-
 import { db } from '@/lib/firebase';
-import type { User, Task, Announcement, AnnouncementAudience, Resource } from '@/lib/types';
+import type { User, Task, Announcement, AnnouncementAudience, Resource, PitchList, PitchContact } from '@/lib/types';
 import {
   collection,
   doc,
@@ -408,4 +406,53 @@ export const updateResource = async (resourceId: string, updates: Partial<Resour
 export const deleteResource = async (resourceId: string): Promise<void> => {
     const resourceRef = doc(db, 'resources', resourceId);
     await deleteDoc(resourceRef);
+};
+
+// == PITCHING FUNCTIONS ==
+
+export const createPitchListWithContacts = async (
+  listData: Omit<PitchList, 'id'>,
+  contactsData: Omit<PitchContact, 'id' | 'status'>[]
+): Promise<PitchList> => {
+  const pitchListsCollection = collection(db, 'pitchLists');
+  const pitchListDocRef = await addDoc(pitchListsCollection, listData);
+  
+  const batch = writeBatch(db);
+  const contactsCollectionRef = collection(db, 'pitchLists', pitchListDocRef.id, 'contacts');
+
+  contactsData.forEach(contact => {
+    const contactDocRef = doc(contactsCollectionRef);
+    batch.set(contactDocRef, { ...contact, status: 'Pending' });
+  });
+
+  await batch.commit();
+
+  return { id: pitchListDocRef.id, ...listData };
+};
+
+export const getPitchLists = (callback: (lists: PitchList[]) => void): (() => void) => {
+  const pitchListsCollection = collection(db, 'pitchLists');
+  const q = query(pitchListsCollection, orderBy('createdAt', 'desc'));
+  return onSnapshot(q, (querySnapshot) => {
+    const lists = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PitchList));
+    callback(lists);
+  });
+};
+
+export const updatePitchList = async (listId: string, updates: Partial<PitchList>): Promise<void> => {
+    const pitchListRef = doc(db, 'pitchLists', listId);
+    await updateDoc(pitchListRef, updates);
+};
+
+export const getContactsForPitchList = (listId: string, callback: (contacts: PitchContact[]) => void): (() => void) => {
+    const contactsCollection = collection(db, 'pitchLists', listId, 'contacts');
+    return onSnapshot(contactsCollection, (querySnapshot) => {
+        const contacts = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PitchContact));
+        callback(contacts);
+    });
+};
+
+export const updatePitchContact = async (listId: string, contactId: string, updates: Partial<PitchContact>): Promise<void> => {
+    const contactRef = doc(db, 'pitchLists', listId, 'contacts', contactId);
+    await updateDoc(contactRef, updates);
 };

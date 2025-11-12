@@ -1,49 +1,53 @@
 
-import { initializeApp, getApps, getApp, type FirebaseOptions } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import { getApp, getApps, type FirebaseApp } from "firebase/app";
+import { getAuth, type Auth } from "firebase/auth";
+import { getFirestore, type Firestore } from "firebase/firestore";
+import { getStorage, type FirebaseStorage } from "firebase/storage";
 
-let app;
-let auth;
-let db;
-let storage;
+let app: FirebaseApp;
+let auth: Auth;
+let db: Firestore;
+let storage: FirebaseStorage;
 
-// This function fetches the config and initializes Firebase
-// It's designed to run only once.
-const initializeFirebase = async () => {
+// This function is now a simple getter.
+// Initialization is handled in FirebaseClientProvider.
+function initializeFirebase() {
     if (getApps().length) {
         app = getApp();
+        auth = getAuth(app);
+        db = getFirestore(app, 'pu-tasker'); 
+        storage = getStorage(app);
     } else {
-        const response = await fetch('/api/firebase-config');
-        if (!response.ok) {
-            throw new Error("Failed to fetch Firebase config.");
-        }
-        const firebaseConfig: FirebaseOptions = await response.json();
-        
-        // Ensure that all required config values are present before initializing
-        if (!firebaseConfig.apiKey || !firebaseConfig.authDomain || !firebaseConfig.projectId) {
-            console.error("Firebase config is missing required fields.");
-            // In a real app, you might want to show an error to the user
-            // instead of letting the app continue in a broken state.
-            return;
-        }
-        
-        app = initializeApp(firebaseConfig);
+        // This should not happen in the browser, as FirebaseClientProvider handles it.
+        // It might happen in a server-side context if not initialized.
+        throw new Error("Firebase has not been initialized. Please use FirebaseClientProvider.");
     }
+}
 
-    auth = getAuth(app);
-    // Connect to the 'pu-tasker' named Firestore database.
-    db = getFirestore(app, 'pu-tasker'); 
-    storage = getStorage(app);
+// We do not call initializeFirebase() here anymore. It's called inside the provider.
+// This prevents the server-side error.
+
+// Export getters that ensure initialization before use.
+const getFirebaseApp = () => {
+    if (!app) initializeFirebase();
+    return app;
+};
+const getFirebaseAuth = () => {
+    if (!auth) initializeFirebase();
+    return auth;
+};
+const getFirebaseDb = () => {
+    if (!db) initializeFirebase();
+    return db;
+};
+const getFirebaseStorage = () => {
+    if (!storage) initializeFirebase();
+    return storage;
 };
 
-
-// We export a promise that resolves when initialization is complete.
-// Components or services can await this before using firebase services.
-const firebaseInitialization = initializeFirebase();
-
-// We also export the services directly. They will be undefined until
-// initialization is complete, but this pattern is common.
-// The AuthProvider will wait for the promise to resolve.
-export { app, auth, db, storage, firebaseInitialization };
+export { 
+    getFirebaseApp as app, 
+    getFirebaseAuth as auth, 
+    getFirebaseDb as db, 
+    getFirebaseStorage as storage
+};

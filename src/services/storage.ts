@@ -1,6 +1,6 @@
 
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '@/lib/firebase';
+import { storage as getStorage } from '@/lib/firebase';
 
 /**
  * Uploads a file to Firebase Storage.
@@ -11,7 +11,7 @@ import { storage } from '@/lib/firebase';
 export const uploadFile = async (file: File, path: string): Promise<string> => {
   if (!file) throw new Error("No file provided for upload.");
 
-  const storageRef = ref(storage, `${path}/${Date.now()}_${file.name}`);
+  const storageRef = ref(getStorage(), `${path}/${Date.now()}_${file.name}`);
   
   const snapshot = await uploadBytes(storageRef, file);
   const downloadURL = await getDownloadURL(snapshot.ref);

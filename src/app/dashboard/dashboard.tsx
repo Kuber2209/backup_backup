@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect } from 'react';
@@ -14,7 +15,7 @@ import { Resources } from '@/components/dashboard/resources';
 import { PitchingDashboard } from '@/components/dashboard/pitching/pitching-dashboard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getMessaging, getToken } from 'firebase/messaging';
-import { app } from '@/lib/firebase';
+import { app as getApp } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { updateUserProfile } from '@/services/firestore';
 import { arrayUnion } from 'firebase/firestore';
@@ -53,7 +54,7 @@ export function Dashboard() {
     const setupFcmToken = async () => {
         if (!currentUser) return;
         try {
-            const messaging = getMessaging(app);
+            const messaging = getMessaging(getApp());
             const currentToken = await getToken(messaging, { vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY });
             
             if (currentToken) {

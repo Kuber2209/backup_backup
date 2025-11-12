@@ -3,8 +3,8 @@ import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from '@/components/theme-provider';
-import { AuthProvider } from '@/hooks/use-auth';
 import Link from 'next/link';
+import { FirebaseClientProvider } from '@/lib/firebase-client-provider';
 
 export const metadata: Metadata = {
   title: 'PUrge BPHC',
@@ -25,7 +25,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased flex flex-col min-h-screen">
-        <AuthProvider>
+        <FirebaseClientProvider>
           <ThemeProvider
             attribute="class"
             defaultTheme="system"
@@ -45,7 +45,7 @@ export default function RootLayout({
               </div>
             </footer>
           </ThemeProvider>
-        </AuthProvider>
+        </FirebaseClientProvider>
       </body>
     </html>
   );

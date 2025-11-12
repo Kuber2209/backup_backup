@@ -1,4 +1,5 @@
-import { db } from '@/lib/firebase';
+
+import { db as getDb } from '@/lib/firebase';
 import type { User, Task, Announcement, AnnouncementAudience, Resource, PitchList, PitchContact } from '@/lib/types';
 import {
   collection,
@@ -23,19 +24,19 @@ import {
 
 // Create or update a user profile
 export const createUserProfile = async (user: User): Promise<void> => {
-  const userRef = doc(db, 'users', user.id);
+  const userRef = doc(getDb(), 'users', user.id);
   await setDoc(userRef, user, { merge: true });
 };
 
 // Update a user profile
 export const updateUserProfile = async (userId: string, updates: Partial<User>): Promise<void> => {
-    const userRef = doc(db, 'users', userId);
+    const userRef = doc(getDb(), 'users', userId);
     await updateDoc(userRef, updates);
 }
 
 // Get a single user profile
 export const getUserProfile = async (userId: string): Promise<User | null> => {
-  const userRef = doc(db, 'users', userId);
+  const userRef = doc(getDb(), 'users', userId);
   const docSnap = await getDoc(userRef);
   if (docSnap.exists()) {
     return docSnap.data() as User;
@@ -45,7 +46,7 @@ export const getUserProfile = async (userId: string): Promise<User | null> => {
 
 // Get all users
 export const getUsers = async (status?: 'pending' | 'active' | 'not-pending-or-declined'): Promise<User[]> => {
-    const usersCollection = collection(db, 'users');
+    const usersCollection = collection(getDb(), 'users');
     let q;
 
     if (status === 'pending') {
@@ -63,7 +64,7 @@ export const getUsers = async (status?: 'pending' | 'active' | 'not-pending-or-d
 
     // If fetching 'not-pending-or-declined', we also need users who have no status field.
     if (status === 'not-pending-or-declined') {
-        const allUsersSnapshot = await getDocs(collection(db, 'users'));
+        const allUsersSnapshot = await getDocs(collection(getDb(), 'users'));
         const usersWithNoStatus = allUsersSnapshot.docs
             .map(doc => doc.data() as User)
             .filter(user => user.status === undefined);
@@ -79,14 +80,14 @@ export const getUsers = async (status?: 'pending' | 'active' | 'not-pending-or-d
 
 // Debar a user - adds them to blacklist and sets status to declined
 export const debarUser = async (user: User): Promise<void> => {
-    const batch = writeBatch(db);
+    const batch = writeBatch(getDb());
     
     // 1. Add email to blacklist
-    const blacklistRef = doc(db, 'blacklist', user.email.toLowerCase());
+    const blacklistRef = doc(getDb(), 'blacklist', user.email.toLowerCase());
     batch.set(blacklistRef, { email: user.email.toLowerCase(), createdAt: new Date().toISOString() });
 
     // 2. Update user status to 'declined'
-    const userRef = doc(db, 'users', user.id);
+    const userRef = doc(getDb(), 'users', user.id);
     batch.update(userRef, { status: 'declined' });
 
     await batch.commit();
@@ -96,24 +97,24 @@ export const debarUser = async (user: User): Promise<void> => {
 // == BLACKLIST FUNCTIONS ==
 export const addEmailToBlacklist = async (email: string): Promise<void> => {
     if (!email) return;
-    const blacklistRef = doc(db, 'blacklist', email.toLowerCase());
+    const blacklistRef = doc(getDb(), 'blacklist', email.toLowerCase());
     await setDoc(blacklistRef, { email: email.toLowerCase(), createdAt: new Date().toISOString() });
 };
 
 export const removeEmailFromBlacklist = async (email: string): Promise<void> => {
-    const blacklistRef = doc(db, 'blacklist', email.toLowerCase());
+    const blacklistRef = doc(getDb(), 'blacklist', email.toLowerCase());
     await deleteDoc(blacklistRef);
 };
 
 export const isEmailBlacklisted = async (email: string): Promise<boolean> => {
     if (!email) return false;
-    const blacklistRef = doc(db, 'blacklist', email.toLowerCase());
+    const blacklistRef = doc(getDb(), 'blacklist', email.toLowerCase());
     const docSnap = await getDoc(blacklistRef);
     return docSnap.exists();
 };
 
 export const getBlacklist = async (): Promise<{ id: string, email: string }[]> => {
-    const blacklistCollection = collection(db, 'blacklist');
+    const blacklistCollection = collection(getDb(), 'blacklist');
     const q = query(blacklistCollection, orderBy('createdAt', 'desc'));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({ id: doc.id, email: doc.data().email as string }));
@@ -125,27 +126,27 @@ export const getBlacklist = async (): Promise<{ id: string, email: string }[]> =
 // Add an email to the whitelist
 export const addEmailToWhitelist = async (email: string): Promise<void> => {
     if (!email) return;
-    const whitelistRef = doc(db, 'whitelist', email.toLowerCase());
+    const whitelistRef = doc(getDb(), 'whitelist', email.toLowerCase());
     await setDoc(whitelistRef, { email: email.toLowerCase(), createdAt: new Date().toISOString() });
 };
 
 // Remove an email from the whitelist
 export const removeEmailFromWhitelist = async (email: string): Promise<void> => {
-    const whitelistRef = doc(db, 'whitelist', email.toLowerCase());
+    const whitelistRef = doc(getDb(), 'whitelist', email.toLowerCase());
     await deleteDoc(whitelistRef);
 };
 
 // Check if an email is whitelisted
 export const isEmailWhitelisted = async (email: string): Promise<boolean> => {
     if (!email) return false;
-    const whitelistRef = doc(db, 'whitelist', email.toLowerCase());
+    const whitelistRef = doc(getDb(), 'whitelist', email.toLowerCase());
     const docSnap = await getDoc(whitelistRef);
     return docSnap.exists();
 };
 
 // Get all whitelisted emails with real-time updates
 export const getWhitelist = async (): Promise<{ id: string, email: string }[]> => {
-    const whitelistCollection = collection(db, 'whitelist');
+    const whitelistCollection = collection(getDb(), 'whitelist');
     const q = query(whitelistCollection, orderBy('createdAt', 'desc'));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({ id: doc.id, email: doc.data().email as string }));
@@ -156,14 +157,14 @@ export const getWhitelist = async (): Promise<{ id: string, email: string }[]> =
 
 // Create a new task
 export const createTask = async (taskData: Omit<Task, 'id'>): Promise<Task> => {
-  const tasksCollection = collection(db, 'tasks');
+  const tasksCollection = collection(getDb(), 'tasks');
   const docRef = await addDoc(tasksCollection, taskData);
   return { id: docRef.id, ...taskData };
 };
 
 // Get a single task with real-time updates
 export const getTask = (taskId: string, callback: (task: Task | null) => void): (() => void) => {
-    const taskRef = doc(db, 'tasks', taskId);
+    const taskRef = doc(getDb(), 'tasks', taskId);
     return onSnapshot(taskRef, (docSnap) => {
         if(docSnap.exists()){
             callback({ id: docSnap.id, ...docSnap.data() } as Task);
@@ -175,7 +176,7 @@ export const getTask = (taskId: string, callback: (task: Task | null) => void): 
 
 // Get all tasks (for initial load or specific views)
 export const getTasks = async (): Promise<Task[]> => {
-    const tasksCollection = collection(db, 'tasks');
+    const tasksCollection = collection(getDb(), 'tasks');
     const q = query(tasksCollection, orderBy('createdAt', 'desc'));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
@@ -183,7 +184,7 @@ export const getTasks = async (): Promise<Task[]> => {
 
 // Get all tasks relevant for a user's calendar view (assigned to or created by)
 export const getCalendarTasksForUser = (userId: string, callback: (tasks: Task[]) => void): (() => void) => {
-    const tasksCollection = collection(db, 'tasks');
+    const tasksCollection = collection(getDb(), 'tasks');
     
     // We need two separate queries because Firestore doesn't support 'OR' queries on different fields.
     const assignedQuery = query(tasksCollection, where('assignedTo', 'array-contains', userId));
@@ -241,7 +242,7 @@ export const getCalendarTasksForUser = (userId: string, callback: (tasks: Task[]
 
 // Get tasks created by a specific user with real-time updates
 export const getTasksCreatedByUser = (userId: string, callback: (tasks: Task[]) => void): (() => void) => {
-    const tasksCollection = collection(db, 'tasks');
+    const tasksCollection = collection(getDb(), 'tasks');
     const q = query(tasksCollection, where('createdBy', '==', userId), orderBy('createdAt', 'desc'));
     return onSnapshot(q, (querySnapshot) => {
         const tasks = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
@@ -251,7 +252,7 @@ export const getTasksCreatedByUser = (userId: string, callback: (tasks: Task[]) 
 
 // Get tasks assigned to a specific user with real-time updates
 export const getTasksAssignedToUser = (userId: string, callback: (tasks: Task[]) => void): (() => void) => {
-    const tasksCollection = collection(db, "tasks");
+    const tasksCollection = collection(getDb(), "tasks");
     const q = query(tasksCollection, where('assignedTo', 'array-contains', userId));
 
     return onSnapshot(q, (snapshot) => {
@@ -265,7 +266,7 @@ export const getTasksAssignedToUser = (userId: string, callback: (tasks: Task[])
 
 // Get all open tasks with real-time updates
 export const getOpenTasks = (callback: (tasks: Task[]) => void): (() => void) => {
-    const tasksCollection = collection(db, 'tasks');
+    const tasksCollection = collection(getDb(), 'tasks');
     const q = query(tasksCollection, where('status', '==', 'Open'));
     return onSnapshot(q, (querySnapshot) => {
         const tasks = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
@@ -276,7 +277,7 @@ export const getOpenTasks = (callback: (tasks: Task[]) => void): (() => void) =>
 
 // Get all ongoing tasks with real-time updates
 export const getOngoingTasks = (callback: (tasks: Task[]) => void): (() => void) => {
-    const tasksCollection = collection(db, 'tasks');
+    const tasksCollection = collection(getDb(), 'tasks');
     const q = query(tasksCollection, where('status', 'in', ['Open', 'In Progress']));
     return onSnapshot(q, (querySnapshot) => {
         const tasks = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
@@ -288,7 +289,7 @@ export const getOngoingTasks = (callback: (tasks: Task[]) => void): (() => void)
 
 // Update a task
 export const updateTask = async (taskId: string, updates: Partial<Task>): Promise<void> => {
-  const taskRef = doc(db, 'tasks', taskId);
+  const taskRef = doc(getDb(), 'tasks', taskId);
   const { ...updateData } = updates;
   if(updateData.completedAt === undefined) {
     // Firestore does not allow `undefined` values.
@@ -301,7 +302,7 @@ export const updateTask = async (taskId: string, updates: Partial<Task>): Promis
 
 // Delete a task
 export const deleteTask = async (taskId: string): Promise<void> => {
-    const taskRef = doc(db, 'tasks', taskId);
+    const taskRef = doc(getDb(), 'tasks', taskId);
     await deleteDoc(taskRef);
 }
 
@@ -328,7 +329,7 @@ export const getTaskUsers = async (task: Task): Promise<User[]> => {
 
     for (const chunk of userIdChunks) {
         if (chunk.length === 0) continue;
-        const usersRef = collection(db, 'users');
+        const usersRef = collection(getDb(), 'users');
         const q = query(usersRef, where('id', 'in', chunk));
         const querySnapshot = await getDocs(q);
         querySnapshot.forEach(doc => {
@@ -344,14 +345,14 @@ export const getTaskUsers = async (task: Task): Promise<User[]> => {
 
 // Create a new announcement
 export const createAnnouncement = async (announcementData: Omit<Announcement, 'id'>): Promise<Announcement> => {
-  const announcementsCollection = collection(db, 'announcements');
+  const announcementsCollection = collection(getDb(), 'announcements');
   const docRef = await addDoc(announcementsCollection, announcementData);
   return { id: docRef.id, ...announcementData };
 };
 
 // Get all announcements with real-time updates based on user role
 export const getAnnouncements = (currentUser: User, callback: (announcements: Announcement[]) => void): (() => void) => {
-  const announcementsCollection = collection(db, 'announcements');
+  const announcementsCollection = collection(getDb(), 'announcements');
   
   let q;
   if (currentUser.role === 'Associate') {
@@ -370,13 +371,13 @@ export const getAnnouncements = (currentUser: User, callback: (announcements: An
 
 // Update an announcement
 export const updateAnnouncement = async (announcementId: string, updates: Partial<Omit<Announcement, 'id'>>): Promise<void> => {
-    const announcementRef = doc(db, 'announcements', announcementId);
+    const announcementRef = doc(getDb(), 'announcements', announcementId);
     await updateDoc(announcementRef, updates);
 };
 
 // Delete an announcement
 export const deleteAnnouncement = async (announcementId: string): Promise<void> => {
-    const announcementRef = doc(db, 'announcements', announcementId);
+    const announcementRef = doc(getDb(), 'announcements', announcementId);
     await deleteDoc(announcementRef);
 };
 
@@ -384,13 +385,13 @@ export const deleteAnnouncement = async (announcementId: string): Promise<void> 
 // == RESOURCE FUNCTIONS ==
 
 export const createResource = async (resourceData: Omit<Resource, 'id'>): Promise<Resource> => {
-    const resourcesCollection = collection(db, 'resources');
+    const resourcesCollection = collection(getDb(), 'resources');
     const docRef = await addDoc(resourcesCollection, resourceData);
     return { id: docRef.id, ...resourceData };
 };
 
 export const getResources = (callback: (resources: Resource[]) => void): (() => void) => {
-    const resourcesCollection = collection(db, 'resources');
+    const resourcesCollection = collection(getDb(), 'resources');
     const q = query(resourcesCollection, orderBy('createdAt', 'desc'));
     return onSnapshot(q, (querySnapshot) => {
         const resources = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Resource));
@@ -399,12 +400,12 @@ export const getResources = (callback: (resources: Resource[]) => void): (() => 
 }
 
 export const updateResource = async (resourceId: string, updates: Partial<Resource>): Promise<void> => {
-    const resourceRef = doc(db, 'resources', resourceId);
+    const resourceRef = doc(getDb(), 'resources', resourceId);
     await updateDoc(resourceRef, updates);
 };
 
 export const deleteResource = async (resourceId: string): Promise<void> => {
-    const resourceRef = doc(db, 'resources', resourceId);
+    const resourceRef = doc(getDb(), 'resources', resourceId);
     await deleteDoc(resourceRef);
 };
 
@@ -414,11 +415,11 @@ export const createPitchListWithContacts = async (
   listData: Omit<PitchList, 'id'>,
   contactsData: Omit<PitchContact, 'id' | 'status'>[]
 ): Promise<PitchList> => {
-  const pitchListsCollection = collection(db, 'pitchLists');
+  const pitchListsCollection = collection(getDb(), 'pitchLists');
   const pitchListDocRef = await addDoc(pitchListsCollection, listData);
   
-  const batch = writeBatch(db);
-  const contactsCollectionRef = collection(db, 'pitchLists', pitchListDocRef.id, 'contacts');
+  const batch = writeBatch(getDb());
+  const contactsCollectionRef = collection(getDb(), 'pitchLists', pitchListDocRef.id, 'contacts');
 
   contactsData.forEach(contact => {
     const contactDocRef = doc(contactsCollectionRef);
@@ -431,7 +432,7 @@ export const createPitchListWithContacts = async (
 };
 
 export const getPitchLists = (callback: (lists: PitchList[]) => void): (() => void) => {
-  const pitchListsCollection = collection(db, 'pitchLists');
+  const pitchListsCollection = collection(getDb(), 'pitchLists');
   const q = query(pitchListsCollection, orderBy('createdAt', 'desc'));
   return onSnapshot(q, (querySnapshot) => {
     const lists = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PitchList));
@@ -440,12 +441,12 @@ export const getPitchLists = (callback: (lists: PitchList[]) => void): (() => vo
 };
 
 export const updatePitchList = async (listId: string, updates: Partial<PitchList>): Promise<void> => {
-    const pitchListRef = doc(db, 'pitchLists', listId);
+    const pitchListRef = doc(getDb(), 'pitchLists', listId);
     await updateDoc(pitchListRef, updates);
 };
 
 export const getContactsForPitchList = (listId: string, callback: (contacts: PitchContact[]) => void): (() => void) => {
-    const contactsCollection = collection(db, 'pitchLists', listId, 'contacts');
+    const contactsCollection = collection(getDb(), 'pitchLists', listId, 'contacts');
     return onSnapshot(contactsCollection, (querySnapshot) => {
         const contacts = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PitchContact));
         callback(contacts);
@@ -453,6 +454,6 @@ export const getContactsForPitchList = (listId: string, callback: (contacts: Pit
 };
 
 export const updatePitchContact = async (listId: string, contactId: string, updates: Partial<PitchContact>): Promise<void> => {
-    const contactRef = doc(db, 'pitchLists', listId, 'contacts', contactId);
+    const contactRef = doc(getDb(), 'pitchLists', listId, 'contacts', contactId);
     await updateDoc(contactRef, updates);
 };
